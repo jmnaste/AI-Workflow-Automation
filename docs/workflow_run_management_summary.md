@@ -22,7 +22,8 @@ Primary objective: Deliver automated workflows that achieve the required outcome
 ## How we measure (indicators)
 - Time‑to‑feature (time to benefit)
 - First‑pass success and quality measures
-- p95 run duration and resource usage per run
+- AI contribution stability & reliability (consistency across runs, drift/variance, HITL escalation rate)
+- Supporting diagnostics: p95 run duration and resource usage per run
 - Staff pressure relief or CX trend (when available)
 
 ## When to deploy WRM

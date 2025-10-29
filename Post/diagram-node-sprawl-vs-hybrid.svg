@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="960" height="420" viewBox="0 0 960 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">No-code Node Sprawl vs Hybrid Boundary</title>
+  <desc id="desc">Left panel shows many small nodes and code nodes connected in a tangled graph. Right panel shows a clean boundary: n8n for triggers/OAuth, FastAPI + LangGraph for decisions/state, and Workflow Run Management for evidence.</desc>
+  <defs>
+    <style>
+      .panel { fill:#f7f9fc; stroke:#c9d6e8; }
+      .title { font:600 16px system-ui,Segoe UI,Arial,sans-serif; fill:#0f172a; }
+      .label { font:500 13px system-ui,Segoe UI,Arial,sans-serif; fill:#0f172a; }
+      .sub { font:400 12px system-ui,Segoe UI,Arial,sans-serif; fill:#334155; }
+      .note { font:400 12px system-ui,Segoe UI,Arial,sans-serif; fill:#475569; }
+      .box { fill:#ffffff; stroke:#94a3b8; rx:6; ry:6; }
+      .code { fill:#fff7ed; stroke:#fb923c; rx:6; ry:6; }
+      .api { fill:#eef2ff; stroke:#6366f1; rx:6; ry:6; }
+      .accent { fill:#ecfeff; stroke:#06b6d4; rx:8; ry:8; }
+      .arrow { stroke:#64748b; stroke-width:1.5; marker-end:url(#arrowhead); }
+      .arrow-strong { stroke:#0ea5e9; stroke-width:2; marker-end:url(#arrowheadStrong); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+    </marker>
+    <marker id="arrowheadStrong" markerWidth="12" markerHeight="8" refX="12" refY="4" orient="auto">
+      <polygon points="0 0, 12 4, 0 8" fill="#0ea5e9"/>
+    </marker>
+  </defs>
+
+  <!-- Left panel: No-code node sprawl -->
+  <rect x="20" y="20" width="440" height="380" class="panel"/>
+  <text x="40" y="48" class="title">No-code node sprawl</text>
+  <text x="40" y="70" class="sub">Proliferating nodes (incl. code nodes) to massage data</text>
+
+  <!-- scattered nodes -->
+  <rect x="60" y="100" width="90" height="34" class="box"/>
+  <text x="75" y="122" class="label">Trigger</text>
+
+  <rect x="170" y="100" width="110" height="34" class="box"/>
+  <text x="185" y="122" class="label">Transform</text>
+
+  <rect x="300" y="100" width="120" height="34" class="code"/>
+  <text x="315" y="122" class="label">Code (parse)</text>
+
+  <rect x="60" y="160" width="110" height="34" class="box"/>
+  <text x="75" y="182" class="label">Prompt</text>
+
+  <rect x="190" y="160" width="100" height="34" class="code"/>
+  <text x="205" y="182" class="label">Code (map)</text>
+
+  <rect x="310" y="160" width="110" height="34" class="api"/>
+  <text x="325" y="182" class="label">API call</text>
+
+  <rect x="60" y="220" width="120" height="34" class="code"/>
+  <text x="75" y="242" class="label">Code (glue)</text>
+
+  <rect x="200" y="220" width="110" height="34" class="box"/>
+  <text x="215" y="242" class="label">Condition</text>
+
+  <rect x="330" y="220" width="90" height="34" class="box"/>
+  <text x="345" y="242" class="label">Retry</text>
+
+  <rect x="120" y="280" width="120" height="34" class="api"/>
+  <text x="135" y="302" class="label">ERP write</text>
+
+  <rect x="270" y="280" width="130" height="34" class="box"/>
+  <text x="285" y="302" class="label">Human check</text>
+
+  <!-- tangled arrows -->
+  <path d="M150 117 L170 117" class="arrow"/>
+  <path d="M280 117 L300 117" class="arrow"/>
+  <path d="M110 177 L190 177" class="arrow"/>
+  <path d="M290 177 L310 177" class="arrow"/>
+  <path d="M120 237 L200 237" class="arrow"/>
+  <path d="M310 237 L330 237" class="arrow"/>
+  <path d="M255 237 C255 260, 210 260, 210 280" class="arrow"/>
+  <path d="M375 237 C375 260, 335 260, 335 280" class="arrow"/>
+  <path d="M240 134 C240 150, 240 160, 240 176" class="arrow"/>
+
+  <text x="40" y="350" class="note">Symptoms: hidden custom code, brittle branches, hard to test, unclear flow</text>
+
+  <!-- Right panel: Hybrid boundary -->
+  <rect x="500" y="20" width="440" height="380" class="panel"/>
+  <text x="520" y="48" class="title">Hybrid boundary (outcome-first)</text>
+  <text x="520" y="70" class="sub">Clear roles + typed code where it counts</text>
+
+  <rect x="520" y="110" width="180" height="54" class="accent"/>
+  <text x="535" y="136" class="label">n8n</text>
+  <text x="535" y="154" class="sub">Triggers / OAuth / Schedules</text>
+
+  <rect x="740" y="100" width="180" height="74" class="box"/>
+  <text x="755" y="126" class="label">FastAPI + LangGraph</text>
+  <text x="755" y="145" class="sub">Typed endpoints • Decisions/state</text>
+
+  <rect x="580" y="220" width="280" height="70" class="box"/>
+  <text x="595" y="245" class="label">Workflow Run Management</text>
+  <text x="595" y="264" class="sub">Runs • State timelines • Diagnostics</text>
+
+  <path d="M700 137 L740 137" class="arrow-strong"/>
+  <path d="M830 174 C830 200, 720 200, 720 220" class="arrow-strong"/>
+
+  <text x="520" y="350" class="note">Indicators we track: Time-to-feature • First-pass success • p95 run/resource</text>
+</svg>

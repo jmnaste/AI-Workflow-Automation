@@ -1,0 +1,91 @@
+@startuml diagram-node-sprawl-vs-hybrid
+' No-code node sprawl vs Hybrid boundary with Workflow Run Management
+' Render: plantuml -tsvg Post/diagram-node-sprawl-vs-hybrid.puml
+' VS Code: Use PlantUML extension (Alt+D) to preview and export
+
+skinparam backgroundColor #ffffff
+skinparam shadowing false
+skinparam defaultFontName Inter, Segoe UI, Arial
+skinparam componentStyle rectangle
+skinparam rectangle {
+  BorderColor #6B7280
+  FontColor #111827
+  FontSize 14
+}
+skinparam note {
+  BackgroundColor #F9FAFB
+  BorderColor #D1D5DB
+}
+skinparam legend {
+  BackgroundColor #F9FAFB
+  BorderColor #D1D5DB
+}
+
+left to right direction
+
+rectangle "No‑code only (single canvas)" as NOCODE #FFF5F5 {
+  frame "Workflow Canvas" as Canvas #FFFFFF {
+    [Trigger]
+    (OAuth / Connector) as Connector
+    [Transform A] as TA
+    [Transform B] as TB
+    [AI Gen]
+    [Code Node]
+    [Retry Node]
+    [DB Node]
+    [REST Node]
+
+    Trigger -down-> Connector
+    Connector -down-> TA
+    TA -right-> TB
+    TB -down-> "AI Gen"
+    "AI Gen" -right-> "Code Node"
+    "Code Node" -down-> "Retry Node"
+    "Retry Node" -down-> "DB Node"
+    "DB Node" -right-> "REST Node"
+  }
+
+  note right of Canvas
+    Issues:
+    - Node sprawl off the happy path
+    - Hidden code islands inside code nodes
+    - Mixed state + logic + I/O on one canvas
+    - Hard to get run-level evidence
+  end note
+}
+
+rectangle "Hybrid boundary" as HYBRID #F0FDF4 {
+  [n8n: Triggers & Connectors] as N8N
+  [FastAPI: Service Boundary] as API
+  [LangGraph: Workflow Core] as CORE
+  database "Runs DB (Postgres/PGVector)" as RUNS
+  rectangle "Artifacts (S3/MinIO)" as S3
+  [WRM Viewer] as WRM
+  [Telemetry (OTel / Prometheus / Grafana)] as O11Y
+
+  N8N -down-> API : webhook / events
+  API -down-> CORE : typed requests
+  CORE -down-> RUNS : run records / states
+  CORE -right-> S3 : artifacts
+  RUNS -down-> WRM : list / details / timeline
+  S3 -down-> WRM : attachments
+  CORE -left-> O11Y : diagnostics
+
+  note right of WRM
+    Evidence surfaces:
+    - Runs list and filters
+    - State timeline (per run)
+    - Diagnostics (errors, retries)
+  end note
+}
+
+legend right
+  Major indicators:
+  - Time-to-feature
+  - First-pass success / quality
+  - AI contribution stability & reliability
+  Supporting diagnostics:
+  - p95 run duration / resource usage
+end legend
+
+@enduml

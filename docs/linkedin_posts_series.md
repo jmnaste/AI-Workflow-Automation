@@ -26,7 +26,7 @@ What we put in place (outcome‑first): a hybrid approach to AI workflow automat
 - Code where it counts: decisions, safety, versioning, tests
 - Workflow run management as the source of truth: visible runs, state timelines, diagnostics
 
-If this resonates, grab the resources: checklist, decision guide, and the three‑indicator walkthrough. We aim to show, in any demo: time‑to‑feature (time to benefit), first‑pass success/quality, and p95 run/resource usage.
+This is the stance we’re implementing. In our own work we prioritize three indicators: time‑to‑feature (time to benefit), first‑pass success/quality, and AI contribution stability & reliability. Supporting signals include p95 run duration and resource usage per run.
 
 CTA:
 - Comment WORKFLOW for the 1‑page checklist
@@ -37,7 +37,7 @@ Hashtags: #AIWorkflowAutomationSeries #AIWorkflowAutomation #AIWorkflow #Automat
 Carousel (3 slides):
 1) Pain: No‑code + AI stalled at quality/scale/safety
 2) Pattern: Hybrid (no‑code for triggers; code for decisions/safety/tests) + Run Management
-3) Next: Weekly evidence (TTF, first‑pass success, p95 run/resource usage) + CTA
+3) Next: Weekly evidence (TTF, first‑pass success, AI contribution stability & reliability; p95/resource as supporting)
 
 ---
 
@@ -52,7 +52,8 @@ A better pattern is workflow run management: a run list, a state timeline, and s
 
 What we show on every demo:
 - First‑pass success rate
-- p95 run duration
+- AI contribution stability & reliability (consistency across runs, drift detection, HITL escalation rate)
+- Supporting: p95 run duration
 - Resource usage per run (tokens, compute)
 - Evidence: state timeline with retries/failure reasons
 
@@ -98,4 +99,4 @@ Hashtags: #AIWorkflowAutomationSeries #AIWorkflowAutomation #AIWorkflow #Automat
 Carousel (3 slides):
 1) Boundary: no‑code vs code
 2) Diagram: n8n ↔ FastAPI + LangGraph ↔ Run Management
-3) Indicators: TTF, first‑pass success, p95 run, resource usage
+3) Indicators: TTF, first‑pass success, AI contribution stability & reliability (supporting: p95 run, resource usage)

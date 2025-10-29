@@ -67,11 +67,12 @@ Goal: Choose the simplest path that still meets business‑grade requirements. U
 ---
 
 ## Evidence & metrics to track
-- Time‑to‑feature (time to benefit)
-- First‑pass success (and quality measures)
-- p95 run duration; resource usage/run
-- Staff pressure relief (utilization/queue depth)
-- Customer experience trend (if available)
+-- Time‑to‑feature (time to benefit)
+-- First‑pass success (and quality measures)
+-- AI contribution stability & reliability (consistency across runs; drift; HITL escalation rate)
+-- Supporting diagnostics: p95 run duration; resource usage/run
+-- Staff pressure relief (utilization/queue depth)
+-- Customer experience trend (if available)
 
 ---
 

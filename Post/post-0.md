@@ -24,12 +24,7 @@ What we put in place (outcome‑first): a hybrid approach to AI workflow automat
 - Code where it counts: decisions, safety, versioning, tests
 - Workflow run management as the source of truth: visible runs, state timelines, diagnostics
 
-If this resonates, use the resources below. Indicators we aim to show in any demo: time‑to‑feature (time to benefit), first‑pass success/quality, and p95 run/resource usage.
-
-CTAs:
-- Comment WORKFLOW for the 1‑page checklist
-- View the three‑indicator walkthrough → [LINK]
-- DM for a 20‑minute feasibility conversation
+We’ve adopted this approach going forward. In our own work we prioritize three indicators: time‑to‑feature (time to benefit), first‑pass success/quality, and AI contribution stability & reliability. Supporting signals include p95 run duration and resource usage per run.
 
 Hashtags: #AIWorkflowAutomation #AIWorkflow #Automation #Operations #EngineeringGrade
 
@@ -38,11 +33,11 @@ Hashtags: #AIWorkflowAutomation #AIWorkflow #Automation #Operations #Engineering
 ## 3‑slide carousel (outline)
 - Slide 1 — Pain: No‑code + AI stalled at quality/scale/safety (1‑2 client‑neutral bullets; keep it kind)
 - Slide 2 — Pattern: Hybrid boundary + run visibility (no‑code for triggers/OAuth; code for decisions/safety/tests; run list + state timeline + diagnostics)
-- Slide 3 — Next: Three indicators (TTF, first‑pass success, p95 run/resource) + CTA buttons
+- Slide 3 — Next: Our focus going forward — three indicators (TTF, first‑pass success, AI contribution stability & reliability)
 
 Alt text suggestions:
 - Slide 2: “Diagram shows n8n (triggers) → FastAPI + LangGraph (decisions/state) → Run Management (runs, states, diagnostics).”
-- Slide 3: “Panel showing three indicators: TTF, first‑pass success %, p95 run/resource usage.”
+- Slide 3: “Panel showing three indicators: TTF, first‑pass success %, AI contribution stability & reliability (with p95 run/resource as supporting).”
 
 ---
 
@@ -53,7 +48,7 @@ Audience: Ops/eng leaders who want automated workflows that achieve required out
 Goal: Show the outcome panel and evidence in ≤ 90 seconds; invite a low‑friction next step.
 
 TL;DR:
-- We measure outcomes, not vibes: TTF, first‑pass success/quality, and p95 run/resource usage.
+- We measure outcomes, not vibes: TTF, first‑pass success/quality, and AI contribution stability & reliability. Supporting: p95 run duration and resource usage per run.
 - Evidence is visible: run list, state timeline (with retries/failure reasons), and redacted I/O when appropriate.
 - Short cycles: small, safe improvements week over week.
 
@@ -93,7 +88,7 @@ Link references:
 - “Here’s the 1‑page checklist we use to scope workflows quickly: [LINK]. If helpful, we can walk through it in a short call: [CALENDLY].”
 
 2) Feasibility DM (inbound interest)
-- “Happy to help. Could you share: (1) the workflow, (2) current tools, (3) one indicator that matters (TTF, first‑pass success, p95 run)? Here’s a 20‑min slot: [CALENDLY].”
+- “Happy to help. Could you share: (1) the workflow, (2) current tools, (3) one indicator that matters (TTF, first‑pass success, AI contribution stability)? Here’s a 20‑min slot: [CALENDLY].”
 
 3) Technical DM (engineer/ops persona)
 - “This shows the run evidence first (run list, state timeline, diagnostics). Spec if you want details: docs/workflow_run_management_spec.md.”
@@ -111,9 +106,9 @@ Link references:
 - [ ] Title matches statement
 - [ ] Body includes the hybrid boundary and visibility stance
 - [ ] Nuanced no‑code note included
-- [ ] CTAs present (WORKFLOW, walkthrough link, Calendly)
+- [ ] No calls to action included (statement only)
 - [ ] Carousel exported and alt text ready
-- [ ] Links have UTMs (utm_source=linkedin&utm_medium=post&utm_campaign=statement)
+- [ ] Links have UTMs (n/a for this statement)
 - [ ] Plan owner to reply to comments within 24h
 
 ---

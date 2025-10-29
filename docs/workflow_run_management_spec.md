@@ -130,10 +130,12 @@ Provide a workflow-first observability layer that makes every run, state transit
 ---
 
 ## Metrics & SLOs
-- Run health: success_rate, first_pass_success_rate, retries_per_100, mttr (mean time to repair)
-- Performance: p95_run_duration, p95_step_duration[name], resource_usage_per_run (tokens/compute)
-- Experience: time_to_feature (where applicable), customer_experience_index (if captured)
+- Public indicators: time_to_feature; first_pass_success_rate; AI contribution stability & reliability (consistency across runs, drift/variance, HITL escalation rate)
+- Run health: success_rate, retries_per_100, mttr (mean time to repair)
+- Performance (supporting diagnostics): p95_run_duration, p95_step_duration[name], resource_usage_per_run (tokens/compute)
+- Experience: customer_experience_index (if captured)
 - SLOs: p95_run_duration < target; success_rate ≥ target; event delivery < 5s 99%; diagnostics available for 99.9% of runs
+- Note: SLOs are internal/operational. p95 metrics are presented as supporting diagnostics, not as public-facing indicators.
 
 ---
 

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Experiment — When No‑Code Delivers, and When Hybrid Is Required</title>
+  <meta name="description" content="A reflection on no‑code limitations, node sprawl, and our outcome‑first hybrid approach to AI workflow automation and vibe coding." />
+  <style>
+    :root {
+      --bg:#0b1220; --panel:#0f172a; --text:#e2e8f0; --muted:#94a3b8; --accent:#06b6d4; --border:#1f2a44; --chip:#0b4b57;
+      --success:#22c55e; --warn:#f59e0b;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:linear-gradient(180deg,#0b1220,#0a1020); color:var(--text); }
+    header { padding:32px 20px 8px; text-align:center; }
+    header h1 { margin:0; font-size:28px; line-height:1.2; }
+    header p { margin:8px auto 0; max-width:900px; color:var(--muted); }
+    main { max-width:960px; margin:24px auto 64px; padding:0 20px; }
+    section { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:16px; }
+    h2 { font-size:18px; margin:0 0 10px; }
+    p { margin:10px 0; }
+    ul { margin:10px 0 0 22px; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    .chip { background:var(--chip); color:#cffafe; padding:6px 10px; border-radius:999px; font-size:12px; border:1px solid #0e7490; }
+    figure { margin:0; }
+    .figure { background:#0c1629; border:1px solid var(--border); border-radius:12px; padding:12px; margin-top:8px; }
+    .figure figcaption { color:var(--muted); font-size:12px; margin-top:8px; text-align:center; }
+    .footnotes { color:var(--muted); font-size:13px; }
+    a { color:#7dd3fc; text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    @media (max-width: 860px) { .grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>The Experiment — When No‑Code Delivers, and When Hybrid Is Required</h1>
+    <p>
+      Nuanced truth: no‑code is excellent when the problem aligns with what the tool was designed to do.
+      Step off that happy path—even for "simple" needs like unusual validations, partial failures, or versioning—and the workaround layers
+      (custom scripts, brittle branches, ad‑hoc webhooks) can exceed the complexity of a small, typed code module.
+    </p>
+  </header>
+  <main>
+    <section>
+      <h2>Limits we hit</h2>
+      <ul>
+        <li>Difficulty achieving targeted functionality without complex orchestration/guardrails (grounding, evals, retries, versioning)</li>
+        <li>Lack of consistency across runs and time (prompt/model variability, drift)</li>
+        <li>Node sprawl: proliferating nodes (including “code” nodes) to massage data shapes/flows—hard to reason about, test, and evolve</li>
+        <li>Brittle decision logic and safety</li>
+        <li>Poor visibility into runs and failure reasons</li>
+        <li>Unpredictable resource usage</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>What we put in place (outcome‑first)</h2>
+      <ul>
+        <li>No‑code where it fits: triggers, OAuth, ops</li>
+        <li>Code where it counts: decisions, safety, versioning, tests</li>
+        <li>Workflow Run Management as the source of truth: visible runs, state timelines, diagnostics</li>
+      </ul>
+      <div class="chips">
+        <span class="chip">Time‑to‑feature</span>
+        <span class="chip">First‑pass success</span>
+        <span class="chip">p95 run / resource usage</span>
+      </div>
+      <figure class="figure" aria-labelledby="figcap">
+        <!-- Inline the SVG diagram -->
+        <img src="diagram-node-sprawl-vs-hybrid.svg" alt="Diagram contrasting node sprawl with a clear hybrid boundary" width="100%" />
+        <figcaption id="figcap">Node sprawl vs a clear hybrid boundary with evidence in Workflow Run Management</figcaption>
+      </figure>
+    </section>
+
+    <section class="grid">
+      <div>
+        <h2>Going forward</h2>
+        <p>
+          This is the approach we’re implementing. In our own work we prioritize three indicators and keep evidence visible in every decision: the run list,
+          state timelines, and diagnostics.
+        </p>
+      </div>
+      <div>
+        <h2>References</h2>
+        <ul class="footnotes">
+          <li>Decision guide (no‑code vs hybrid): <code>docs/decision_guide_no_code_vs_hybrid.md</code></li>
+          <li>Workflow Run Management — Executive summary: <code>docs/workflow_run_management_summary.md</code></li>
+          <li>Full WRM spec: <code>docs/workflow_run_management_spec.md</code></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
