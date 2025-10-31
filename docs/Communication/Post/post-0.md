@@ -1,15 +1,15 @@
-# Statement (not part of the series)
+# Statement
 
-Title: The Experiment — When No‑Code Delivers, and When Hybrid Is Required
+When No‑Code Delivers, and When Hybrid Is Required
 
-Purpose: Invite honest feedback from teams who invested in no‑code + AI automations but didn’t reach enterprise‑grade outcomes; set expectations for an outcome‑first approach and introduce the decision guide and three‑indicator walkthrough.
+Purpose: Share experience about no‑code + AI automations but without reaching enterprise‑grade outcomes; set expectations for an outcome‑first approach and introduce the decision guide and three‑indicator walkthrough.
 
 ---
 
 ## Paste‑ready LinkedIn post
-Nuanced truth: no‑code is excellent when the problem aligns with what the tool was designed to do. Step off that happy path—even for "simple" needs like unusual validations, partial failures, or versioning—and the workaround layers (custom scripts, brittle branches, ad‑hoc webhooks) quickly overtake the complexity of a small, well‑typed code module.
+No‑code is excellent when the problem aligns with what the tool was designed to do. Step off that happy path—even for "simple" needs and the workaround layers (custom scripts, brittle branches, ad‑hoc webhooks) quickly overtake the complexity of a small, well‑typed code module.
 
-Most teams poured time and hope into no‑code + AI automations and stalled on quality, scale, or security.
+No‑code + AI automations rapidly stalled on quality results, efficiency, or security.
 
 Our early experiments (prompts, RAG, agent builders, vibe coding) hit the same ceiling:
 - Difficulty achieving targeted functionality without complex orchestration/guardrails (grounding, evals, retries, versioning)
@@ -52,12 +52,7 @@ TL;DR:
 - Evidence is visible: run list, state timeline (with retries/failure reasons), and redacted I/O when appropriate.
 - Short cycles: small, safe improvements week over week.
 
-What you’ll see:
-- 60–90s video: quick flow, indicators, and run viewer snapshot
-- Indicator panel with baseline → current deltas
-- One example run: status, duration, retries, and last error (if any)
-
-How it works (high level):
+Hybrid approach:
 - No‑code where it fits (triggers/OAuth/ops); code where it counts (decisions/safety/tests)
 - Workflow Run Management surfaces runs, states, and diagnostics; telemetry supports analysis
 - Evals/grounding/resource caps keep reliability predictable

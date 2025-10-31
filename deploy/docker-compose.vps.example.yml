@@ -1,0 +1,92 @@
+version: "3.9"
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  letsencrypt:
+
+services:
+  # Reverse proxy and TLS termination
+  traefik:
+    image: traefik:v3.0
+    command:
+      - --api.dashboard=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.le.acme.httpchallenge=true
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.le.acme.email=${TRAEFIK_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      - --serversTransport.insecureSkipVerify=false
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+    networks:
+      - backend
+    restart: unless-stopped
+
+  # UI (built from local ./ui)
+  ui:
+    build:
+      context: ../ui
+    depends_on:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      # Host-based routing for UI
+      - "traefik.http.routers.ui.rule=Host(`${UI_HOST}`) || Host(`${PRIMARY_HOST}`)"
+      - "traefik.http.routers.ui.entrypoints=websecure"
+      - "traefik.http.routers.ui.tls.certresolver=le"
+      # (Optional) path-based routing if using a single host
+      # - "traefik.http.routers.ui.rule=Host(`${PRIMARY_HOST}`) && PathPrefix(`/`)"
+    networks:
+      - backend
+    restart: unless-stopped
+
+  # FastAPI (built from local ./api). Private by default; expose via path /api under PRIMARY_HOST.
+  api:
+    build:
+      context: ../api
+    # Example command baked in Dockerfile: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    environment:
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      # Default: serve API under the same host as the UI at /api (same-origin, zero CORS)
+      - "traefik.http.routers.api.rule=Host(`${PRIMARY_HOST}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls.certresolver=le"
+      # Higher priority to ensure /api goes to api instead of ui
+      - "traefik.http.routers.api.priority=100"
+      # If you prefer a separate api subdomain, comment the 3 lines above and uncomment:
+      # - "traefik.http.routers.api.rule=Host(`${API_HOST}`)"
+      # - "traefik.http.routers.api.entrypoints=websecure"
+      # - "traefik.http.routers.api.tls.certresolver=le"
+    networks:
+      - backend
+    restart: unless-stopped
+
+  # n8n (optional here if you already have it deployed). Attach to the same network.
+  # Uncomment and adjust to your existing volumes and env.
+  # n8n:
+  #   image: n8nio/n8n:latest
+  #   environment:
+  #     - N8N_HOST=${N8N_HOST}
+  #     - N8N_PROTOCOL=https
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.n8n.rule=Host(`${N8N_HOST}`)"
+  #     - "traefik.http.routers.n8n.entrypoints=websecure"
+  #     - "traefik.http.routers.n8n.tls.certresolver=le"
+  #   networks:
+  #     - backend
+  #   restart: unless-stopped

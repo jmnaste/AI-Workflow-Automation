@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Workflow UI</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 2rem; }
+    .card { max-width: 720px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; }
+    pre { background: #f9fafb; padding: 0.75rem; border-radius: 6px; overflow-x: auto; }
+    button { padding: 0.5rem 0.75rem; }
+  </style>
+</head>
+<body>
+  <h1>AI Workflow UI</h1>
+  <div class="card">
+    <p>This minimal UI calls the backend API at <code>/api</code> (same-origin via Traefik path routing).</p>
+    <button id="btn-ping">Ping API</button>
+    <button id="btn-health">Check Health</button>
+    <button id="btn-secure">Secure Call</button>
+    <pre id="out">Click a button to call the API…</pre>
+  </div>
+  <script src="./app.js"></script>
+</body>
+</html>
