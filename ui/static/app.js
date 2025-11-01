@@ -10,6 +10,4 @@ async function call(path, opts={}) {
   }
 }
 
-document.getElementById('btn-ping').addEventListener('click', () => call('/api/ping'));
 document.getElementById('btn-health').addEventListener('click', () => call('/api/health'));
-document.getElementById('btn-secure').addEventListener('click', () => call('/api/secure', { headers: { Authorization: 'Bearer dev' } }));

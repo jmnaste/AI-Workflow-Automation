@@ -14,11 +14,9 @@
 <body>
   <h1>AI Workflow UI</h1>
   <div class="card">
-    <p>This minimal UI calls the backend API at <code>/api</code> (same-origin via Traefik path routing).</p>
-    <button id="btn-ping">Ping API</button>
+    <p>This minimal UI calls the backend API health at <code>/api/health</code> (same-origin via Traefik path routing).</p>
     <button id="btn-health">Check Health</button>
-    <button id="btn-secure">Secure Call</button>
-    <pre id="out">Click a button to call the API…</pre>
+    <pre id="out">Click to check API health…</pre>
   </div>
   <script src="./app.js"></script>
 </body>

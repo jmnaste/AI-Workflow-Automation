@@ -1,0 +1,42 @@
+version: "3.9"
+
+# Alternative: build UI and API directly from GitHub without copying sources to the VPS.
+# Requires the Docker builder to support remote git contexts (most do).
+# Repo: https://github.com/jmnaste/AI-Workflow-Automation (branch: main)
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK}
+
+services:
+  ui:
+    build:
+      # Pulls only the ui/ folder from the repo@main
+      context: https://github.com/jmnaste/AI-Workflow-Automation.git#main:ui
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ui.rule=Host(`${UI_HOST}`) || Host(`${PRIMARY_HOST}`)
+      - traefik.http.routers.ui.entrypoints=web,websecure
+      - traefik.http.routers.ui.tls=true
+      - traefik.http.routers.ui.tls.certresolver=mytlschallenge
+    networks:
+      - traefik
+    restart: unless-stopped
+
+  api:
+    build:
+      # Pulls only the api/ folder from the repo@main
+      context: https://github.com/jmnaste/AI-Workflow-Automation.git#main:api
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.api.rule=Host(`${PRIMARY_HOST}`) && PathPrefix(`/api`)
+      - traefik.http.routers.api.entrypoints=web,websecure
+      - traefik.http.routers.api.tls=true
+      - traefik.http.routers.api.tls.certresolver=mytlschallenge
+      - traefik.http.routers.api.priority=100
+    networks:
+      traefik:
+        aliases:
+          - api
+    restart: unless-stopped

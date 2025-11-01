@@ -1,0 +1,42 @@
+version: "3.9"
+
+# Paste this into a new Hostinger Compose project for UI+API.
+# It attaches to your existing Traefik network and serves:
+#   - UI at https://${PRIMARY_HOST}
+#   - API at https://${PRIMARY_HOST}/api
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK}
+
+services:
+  ui:
+    build:
+      context: ../ui
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ui.rule=Host(`${UI_HOST}`) || Host(`${PRIMARY_HOST}`)
+      - traefik.http.routers.ui.entrypoints=web,websecure
+      - traefik.http.routers.ui.tls=true
+      - traefik.http.routers.ui.tls.certresolver=mytlschallenge
+    networks:
+      - traefik
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ../api
+    labels:
+      - traefik.enable=true
+      # Same-origin path routing to avoid CORS
+      - traefik.http.routers.api.rule=Host(`${PRIMARY_HOST}`) && PathPrefix(`/api`)
+      - traefik.http.routers.api.entrypoints=web,websecure
+      - traefik.http.routers.api.tls=true
+      - traefik.http.routers.api.tls.certresolver=mytlschallenge
+      - traefik.http.routers.api.priority=100
+    networks:
+      traefik:
+        aliases:
+          - api
+    restart: unless-stopped
