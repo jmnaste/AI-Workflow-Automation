@@ -39,6 +39,7 @@ Steps (new Compose project called "ui-api")
 Verify
 - UI: `https://console.example.com`
 - API health: `https://console.example.com/api/health` should return `{ "status": "ok" }`.
+ - Combined UI+API health: `https://console.example.com/health` (served by UI, proxies to API).
 
 Notes
 - The API is served only under `/api` on the UI host (same‑origin, no CORS). Internally, services can reach it at `http://api:8000` when on the same Docker network.
@@ -59,6 +60,7 @@ Steps
 
 Verify
 - UI at your host; API health at `/api/health`.
+ - Combined UI+API health at `/health`.
 
 ### CI/CD for images (optional but recommended)
 
