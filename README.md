@@ -15,6 +15,17 @@ No loose files at repo root beyond this README and dotfiles.
 
 See `docs/deploy_single_vps.md` and the sample stack in `deploy/docker-compose.vps.example.yml`. Prefer same-origin routing so the UI calls the API at `/api`.
 
+## Development
+
+For local development, use the dev compose stack (no Traefik):
+
+- File: `deploy/docker-compose.dev.yml`
+- Run: `docker compose -f deploy/docker-compose.dev.yml up --build`
+- Open: `http://localhost:8080`
+- Health (through UI proxy): `http://localhost:8080/api/health`
+
+More details in `docs/development.md`.
+
 ## Deployment
 
 You can deploy the UI + API alongside an existing Traefik + n8n stack on a single VPS. Two supported paths:

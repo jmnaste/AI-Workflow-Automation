@@ -1,0 +1,30 @@
+version: "3.9"
+
+# Local development stack (no Traefik). Same-origin via the UI.
+# - UI listens on localhost:8080
+# - API is private (no published port) and only reachable via UI proxy at /api
+# - Hot reload for API using uvicorn --reload
+
+services:
+  api:
+    build:
+      context: ../api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ../api/app:/app/app
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: ../ui
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+    # Mount UI assets and config for live edits (no container rebuild needed)
+    volumes:
+      - ../ui/nginx.dev.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../ui/static:/usr/share/nginx/html:ro
+    restart: unless-stopped
