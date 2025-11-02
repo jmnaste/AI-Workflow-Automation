@@ -11,6 +11,7 @@ networks:
 
 services:
   ui:
+    image: ghcr.io/jmnaste/ai-workflow-automation/ui:main
     build:
       # Pulls only the ui/ folder from the repo@main
       context: https://github.com/jmnaste/AI-Workflow-Automation.git#main:ui
@@ -25,6 +26,7 @@ services:
     restart: unless-stopped
 
   api:
+    image: ghcr.io/jmnaste/ai-workflow-automation/api:main
     build:
       # Pulls only the api/ folder from the repo@main
       context: https://github.com/jmnaste/AI-Workflow-Automation.git#main:api
