@@ -31,12 +31,7 @@ services:
       # Pulls only the api/ folder from the repo@main
       context: https://github.com/jmnaste/AI-Workflow-Automation.git#main:api
     labels:
-      - traefik.enable=true
-      - traefik.http.routers.api.rule=Host(`${PRIMARY_HOST}`) && PathPrefix(`/api`)
-      - traefik.http.routers.api.entrypoints=web,websecure
-      - traefik.http.routers.api.tls=true
-      - traefik.http.routers.api.tls.certresolver=mytlschallenge
-      - traefik.http.routers.api.priority=100
+      - traefik.enable=false
     networks:
       traefik:
         aliases:
