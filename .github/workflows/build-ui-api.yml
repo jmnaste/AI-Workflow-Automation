@@ -3,10 +3,6 @@ name: Build and publish UI + API images
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'ui/**'
-      - 'api/**'
-      - '.github/workflows/build-ui-api.yml'
   workflow_dispatch: {}
 
 permissions:
