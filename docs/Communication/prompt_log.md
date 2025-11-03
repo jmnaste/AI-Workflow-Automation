@@ -8,7 +8,7 @@ Entries are appended in reverse chronological order.
 ```
 Now help me have this configuration up-and-running on the vps on hostinger (See <attachments> above for file contents. You may not need to search or read the file again.)
 ```
-- Answer (minimal): Use deploy/docker-compose.yml with .env (TRAEFIK_NETWORK, PRIMARY_HOST, UI_HOST); run docker compose from deploy/; verify https://<PRIMARY_HOST>/api/health returns ok.
+- Answer (minimal): Use deploy/docker-compose.yml with .env (TRAEFIK_NETWORK); run docker compose from deploy/; verify API /api/health returns ok.
 
 ## 2025-10-31 — Minimal VPS stack request
 - Prompt:
@@ -20,7 +20,7 @@ We need to have a minimal setup on the vps so to
 
 Please have a file where you log prompt I post and a really minimal answer of yours. This shall be done for each and every post I make.
 ```
-- Answer (minimal): Keep n8n unchanged; add FastAPI /api/health; UI calls /api/health; add add-on compose for Traefik.
+- Answer (minimal): Keep n8n unchanged; add FastAPI /api/health; no UI component.
 
 ## 2025-10-31 — Logging policy update
 - Prompt:

@@ -1,4 +1,4 @@
-name: Build and publish UI + API images
+name: Build and publish API image
 
 on:
   push:
@@ -10,45 +10,6 @@ permissions:
   packages: write
 
 jobs:
-  build-ui:
-    name: Build UI image
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract UI metadata (tags, labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}/ui
-          tags: |
-            type=ref,event=branch
-            type=sha
-            type=raw,value=main
-
-      - name: Build and push UI
-        uses: docker/build-push-action@v6
-        with:
-          context: ./ui
-          push: true
-          provenance: false
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
   build-api:
     name: Build API image
     runs-on: ubuntu-latest

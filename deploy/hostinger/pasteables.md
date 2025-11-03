@@ -1,11 +1,10 @@
-# Hostinger pasteables: Environment panel + YAML snippets
+# Hostinger pasteables: Environment panel + labels for n8n
 
-This file gives you copy‑paste blocks for Hostinger’s Compose UI. Use the Environment block in the right panel, and paste the YAML snippets into the left YAML editor as directed.
+This file gives you copy‑paste blocks for Hostinger’s Compose UI. Use the Environment block in the right panel, and paste the labels into your existing n8n service on the left.
 
 Notes
 - Keep one definition per variable. Do not duplicate keys with different values.
 - Lines must be KEY=VALUE with no quotes and no spaces around =.
-- The UI/API snippet assumes you’ll run this as an add‑on project that can access the `../ui` and `../api` build contexts (as in this repo). If you’re only editing your existing n8n project, use the “n8n labels only” block.
 
 ---
 
@@ -30,10 +29,6 @@ N8N_RUNNERS_ENABLED=true
 N8N_GIT_NODE_DISABLE_BARE_REPOS=true
 N8N_BLOCK_ENV_ACCESS_IN_NODE=false
 
-# UI + API same-origin host
-PRIMARY_HOST=workflow.coachstudio.com
-UI_HOST=workflow.coachstudio.com
-
 # Traefik external Docker network name (must match your existing Traefik network)
 TRAEFIK_NETWORK=root_default
 
@@ -48,7 +43,7 @@ If you still have older values like `DOMAIN_NAME` and `SUBDOMAIN`, you can remov
 
 ---
 
-## 2) n8n labels only — paste under the n8n service `labels:` list
+## 2) n8n labels — paste under the n8n service `labels:` list
 
 Use this when you’re modifying your existing Hostinger "root" project that already runs Traefik + n8n. Replace the current n8n labels block with the lines below.
 
@@ -88,74 +83,18 @@ services:
 
 ---
 
-## 3) UI + API add‑on snippet — paste as a separate Hostinger project YAML
-
-Use this if you’re creating a second (add‑on) project in Hostinger for the UI + API. It will attach to your existing Traefik network and serve the API at `/api` under the same host as the UI.
-
-```
-version: "3.9"
-
-networks:
-  traefik:
-    external: true
-    name: ${TRAEFIK_NETWORK}
-
-services:
-  ui:
-    build:
-      context: ../ui
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.ui.rule=Host(`${UI_HOST}`) || Host(`${PRIMARY_HOST}`)
-      - traefik.http.routers.ui.entrypoints=web,websecure
-      - traefik.http.routers.ui.tls=true
-      - traefik.http.routers.ui.tls.certresolver=mytlschallenge
-    networks:
-      - traefik
-    restart: unless-stopped
-
-  api:
-    build:
-      context: ../api
-    labels:
-      - traefik.enable=true
-      # Same-origin path routing to avoid CORS
-      - traefik.http.routers.api.rule=Host(`${PRIMARY_HOST}`) && PathPrefix(`/api`)
-      - traefik.http.routers.api.entrypoints=web,websecure
-      - traefik.http.routers.api.tls=true
-      - traefik.http.routers.api.tls.certresolver=mytlschallenge
-      - traefik.http.routers.api.priority=100
-    networks:
-      traefik:
-        aliases:
-          - api
-    restart: unless-stopped
-```
-
-Requirements for this snippet
-- The `../ui` and `../api` folders (with Dockerfiles) must exist relative to where Hostinger runs this compose. If they don’t, either deploy from the VPS using this repo’s layout or switch to prebuilt images.
-- The `${TRAEFIK_NETWORK}` value must match the existing Traefik network name (e.g., `root_default`). Set it in the Environment panel.
-
----
-
-## 4) Minimal verification (from Windows PowerShell)
+## 3) Minimal verification (from Windows PowerShell)
 
 ```
 # n8n hostname resolves
 Resolve-DnsName n8n.coachstudio.com -Type A
 Resolve-DnsName n8n.coachstudio.com -Type AAAA
 
-# UI/API host resolves
-Resolve-DnsName workflow.coachstudio.com -Type A
-Resolve-DnsName workflow.coachstudio.com -Type AAAA
-
 # After deploy, check redirects and TLS
 curl.exe -I http://n8n.coachstudio.com
 curl.exe -I https://n8n.coachstudio.com
 curl.exe -vk https://n8n.coachstudio.com 2>&1 | Select-String -Pattern "subject:|issuer:|expire|start date"
 
-# API health
-curl.exe -sS https://workflow.coachstudio.com/api/health
 ```
 
 If the browser still shows a warning after certificates are issued, try an incognito window or clear HSTS for the domain.
