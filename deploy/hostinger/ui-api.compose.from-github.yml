@@ -8,6 +8,8 @@ networks:
   traefik:
     external: true
     name: ${TRAEFIK_NETWORK}
+  backend:
+    internal: true
 
 services:
   ui:
@@ -23,6 +25,7 @@ services:
       - traefik.http.routers.ui.tls.certresolver=mytlschallenge
     networks:
       - traefik
+      - backend
     restart: unless-stopped
 
   api:
@@ -33,7 +36,7 @@ services:
     labels:
       - traefik.enable=false
     networks:
-      traefik:
+      backend:
         aliases:
           - api
     restart: unless-stopped
