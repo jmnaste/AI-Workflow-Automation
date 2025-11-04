@@ -16,7 +16,7 @@ def health():
 
 
 @app.get("/api/health2")
-def health():
+def health2():
     """Minimal liveness endpoint for UI and n8n checks."""
     return {"status2": "ok"}
 
