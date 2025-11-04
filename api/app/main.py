@@ -15,6 +15,12 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/api/health2")
+def health():
+    """Minimal liveness endpoint for UI and n8n checks."""
+    return {"status2": "ok"}
+
+
 @app.get("/api/db/health")
 def db_health():
     """Lightweight DB connectivity check using DATABASE_URL.
