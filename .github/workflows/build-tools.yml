@@ -1,0 +1,15 @@
+name: DEPRECATED - Tools image (replaced by NetShell)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  noop:
+    name: Deprecated notice
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "This workflow is deprecated. Use build-netshell.yml instead."

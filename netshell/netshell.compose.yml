@@ -1,0 +1,17 @@
+# NetShell toolbox project (Option A — separate project)
+# Attach to your existing Traefik external Docker network so it can resolve internal hostnames like `api`
+
+services:
+  net-debug:
+    image: praqma/network-multitool:light
+    command: ["sleep", "infinity"]
+    labels:
+      - traefik.enable=false
+    networks:
+      traefik: {}
+    restart: unless-stopped
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK}
