@@ -13,6 +13,7 @@ services:
     image: ghcr.io/jmnaste/ai-workflow-automation/api:main
     environment:
       - PYTHONUNBUFFERED=1
+      - DATABASE_URL=${DATABASE_URL}
     labels:
       - traefik.enable=false
     networks:

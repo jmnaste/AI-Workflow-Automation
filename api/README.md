@@ -15,6 +15,9 @@ This folder contains everything needed to build the API image in GitHub Actions 
 
 ```
 TRAEFIK_NETWORK=root_default
+# Optional if using Postgres: DSN on the private Docker network
+# For psycopg driver:
+DATABASE_URL=postgresql://app_system:YOUR_PASSWORD@postgres:5432/app_db
 ```
 
 4) Deploy. No ports are published and no Traefik router is created; the API runs privately.
@@ -31,6 +34,10 @@ The hostname `api` works because the compose file sets a network alias `api` on 
 
 - From inside the n8n container shell: `curl -s http://api:8000/api/health`
 - From a temporary debug container attached to the network: `docker run --rm -it --network root_default curlimages/curl:8.10.1 curl -s http://api:8000/api/health`
+
+If you configured `DATABASE_URL`, you can also check DB connectivity:
+
+- `curl -s http://api:8000/api/db/health`
 
 ## Troubleshooting
 
