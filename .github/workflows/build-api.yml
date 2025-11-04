@@ -41,6 +41,7 @@ jobs:
             type=raw,value=main
 
       - name: Build and push API
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: ./api
@@ -48,3 +49,17 @@ jobs:
           provenance: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Publish build summary
+        if: always()
+        run: |
+          {
+            echo "### API image published";
+            echo "";
+            echo "Repository: ghcr.io/jmnaste/ai-workflow-automation/api";
+            echo "";
+            echo "Tags:";
+            echo "${{ steps.meta.outputs.tags }}" | sed 's/^/- /';
+            echo "";
+            echo "Digest: `${{ steps.build.outputs.digest }}`";
+          } >> "$GITHUB_STEP_SUMMARY"

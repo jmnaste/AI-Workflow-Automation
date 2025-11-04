@@ -31,7 +31,21 @@ If you’re running n8n behind Traefik on Hostinger, use the n8n labels and envi
 
 ## CI/CD
 
-The workflow `/.github/workflows/build-api.yml` builds and publishes the API image to GHCR as `ghcr.io/<owner>/<repo>/api:main` on pushes to `main`.
+Build status
+
+[![Build API](https://github.com/jmnaste/AI-Workflow-Automation/actions/workflows/build-api.yml/badge.svg)](https://github.com/jmnaste/AI-Workflow-Automation/actions/workflows/build-api.yml)
+[![Build NetShell](https://github.com/jmnaste/AI-Workflow-Automation/actions/workflows/build-netshell.yml/badge.svg)](https://github.com/jmnaste/AI-Workflow-Automation/actions/workflows/build-netshell.yml)
+
+Workflows
+
+- `/.github/workflows/build-api.yml` — builds and publishes the API image to GHCR as `ghcr.io/jmnaste/ai-workflow-automation/api` (tags: main, branch, sha).
+- `/.github/workflows/build-netshell.yml` — builds and publishes the NetShell image to GHCR as `ghcr.io/jmnaste/ai-workflow-automation/netshell` (tags: main, branch, sha).
+
+Each workflow writes a job summary with published tags and image digest for quick visibility in the Actions UI.
+
+Package visibility (GHCR)
+
+- Container packages live under GitHub Packages for this repo. If you need them publicly pullable, set the package visibility to Public in GitHub → Packages → [select package] → Package settings.
 
 ## Security posture
 
