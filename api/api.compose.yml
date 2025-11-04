@@ -11,6 +11,7 @@ networks:
 services:
   api:
     image: ghcr.io/jmnaste/ai-workflow-automation/api:main
+    pull_policy: always
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=${DATABASE_URL}
