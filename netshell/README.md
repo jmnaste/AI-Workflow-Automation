@@ -2,7 +2,7 @@
 
 A small, persistent network shell container attached to your Traefik external Docker network so you can shell in and test connectivity to private services like the API via `http://api:8000`.
 
-The default image is `praqma/network-multitool:light`, which includes curl, dig, nc, etc. You can also build your own GHCR-hosted image from the provided Dockerfile.
+The default image is `wbitt/network-multitool:latest` (maintained successor of praqma/network-multitool), which includes curl, dig, nc, bash, etc. You can also build your own GHCR-hosted image from the provided Dockerfile.
 
 ## Manual deployment on Hostinger (first deploy)
 
@@ -35,7 +35,7 @@ curl -sS http://api:8000/api/health
 
 If you prefer a reproducible, repository-owned image:
 
-- The Dockerfile in `netshell/Dockerfile` builds a custom toolbox image based on `praqma/network-multitool:light`.
+- The Dockerfile in `netshell/Dockerfile` builds a custom toolbox image based on `wbitt/network-multitool:latest`.
 - The workflow `/.github/workflows/build-netshell.yml` builds and publishes to:
   - `ghcr.io/jmnaste/ai-workflow-automation/netshell:main`
   - plus branch/ref/sha tags

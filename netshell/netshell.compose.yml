@@ -3,7 +3,7 @@
 
 services:
   net-debug:
-    image: praqma/network-multitool:light
+    image: wbitt/network-multitool:latest
     command: ["sleep", "infinity"]
     labels:
       - traefik.enable=false
