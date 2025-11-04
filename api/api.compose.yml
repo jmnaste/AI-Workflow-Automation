@@ -1,0 +1,24 @@
+version: "3.9"
+
+# API private-only deployment (Option A)
+# - Attaches API to the existing Traefik network for internal DNS
+# - Does NOT expose any public router; traefik.enable=false
+# - n8n (on the same network) can call http://api:8000
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK}
+
+services:
+  api:
+    image: ghcr.io/jmnaste/AI-Workflow-Automation/api:main
+    environment:
+      - PYTHONUNBUFFERED=1
+    labels:
+      - traefik.enable=false
+    networks:
+      traefik:
+        aliases:
+          - api
+    restart: unless-stopped
