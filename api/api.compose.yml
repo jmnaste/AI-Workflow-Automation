@@ -1,5 +1,3 @@
-version: "3.9"
-
 # API private-only deployment (Option A)
 # - Attaches API to the existing Traefik network for internal DNS
 # - Does NOT expose any public router; traefik.enable=false
@@ -12,7 +10,7 @@ networks:
 
 services:
   api:
-    image: ghcr.io/jmnaste/AI-Workflow-Automation/api:main
+    image: ghcr.io/jmnaste/ai-workflow-automation/api:main
     environment:
       - PYTHONUNBUFFERED=1
     labels:

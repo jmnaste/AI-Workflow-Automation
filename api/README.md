@@ -4,7 +4,7 @@ This folder contains everything needed to build the API image in GitHub Actions 
 
 ## Image
 
-- Name: `ghcr.io/jmnaste/AI-Workflow-Automation/api:main`
+- Name: `ghcr.io/jmnaste/ai-workflow-automation/api:main`
 - Built by: `/.github/workflows/build-api.yml` on each push to `main`
 
 ## Deploy on Hostinger (private API)
@@ -38,7 +38,7 @@ The hostname `api` works because the compose file sets a network alias `api` on 
   - Ensure both services are on the same Docker network (value of `TRAEFIK_NETWORK`).
   - Confirm the alias `api` exists: `docker network inspect <network> | jq '.[0].Containers'`.
 - Image not found:
-  - Confirm `ghcr.io/jmnaste/AI-Workflow-Automation/api:main` exists under GitHub Packages for this repo.
+  - Confirm `ghcr.io/jmnaste/ai-workflow-automation/api:main` exists under GitHub Packages for this repo.
   - If your registry or namespace differs, edit the `image:` in the compose file accordingly.
 - Need a fixed version:
   - Replace `:main` with the commit SHA tag published by the workflow (e.g., `:sha-<short>`).
