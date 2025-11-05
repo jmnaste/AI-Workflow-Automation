@@ -94,9 +94,25 @@ def migrate_if_enabled() -> None:
 
         with psycopg.connect(db_url, autocommit=True) as conn:
             with conn.cursor() as cur:
-                # Read current alembic head
-                cur.execute("SELECT version_num FROM auth.alembic_version_auth LIMIT 1")
-                head = (cur.fetchone() or [None])[0]
+                # Read current alembic head from the known/likely tables
+                head = None
+                for stmt in (
+                    "SELECT version_num FROM auth.alembic_version_auth LIMIT 1",
+                    "SELECT version_num FROM public.alembic_version_auth LIMIT 1",
+                    "SELECT version_num FROM auth.alembic_version LIMIT 1",
+                    "SELECT version_num FROM public.alembic_version LIMIT 1",
+                ):
+                    try:
+                        cur.execute(stmt)
+                        head = (cur.fetchone() or [None])[0]
+                        if head:
+                            break
+                    except Exception:
+                        # Try next
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
                 # Read pointer row
                 cur.execute("SELECT alembic_rev FROM auth.schema_registry WHERE service='auth'")
                 row = cur.fetchone()
