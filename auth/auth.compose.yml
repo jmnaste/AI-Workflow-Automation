@@ -1,0 +1,32 @@
+# Auth service (private by default, optional public webhook)
+# - Attaches to the existing Traefik network for internal DNS
+# - Private-only unless AUTH_PUBLIC=true and webhook host/path provided
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK}
+
+services:
+  auth:
+    image: ghcr.io/jmnaste/ai-workflow-automation/auth:main
+    pull_policy: always
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=${DATABASE_URL}
+    labels:
+      # Keep private by default; set AUTH_PUBLIC=true to expose webhook route(s)
+      - traefik.enable=${AUTH_PUBLIC:-false}
+      - traefik.docker.network=${TRAEFIK_NETWORK}
+      # Public webhook router (optional; enable with AUTH_PUBLIC=true)
+      - traefik.http.routers.auth-webhook.rule=Host(`${AUTH_WEBHOOK_HOST}`) && PathPrefix(`${AUTH_WEBHOOK_PATH_PREFIX:-/webhook}`)
+      - traefik.http.routers.auth-webhook.entrypoints=${AUTH_ENTRYPOINTS:-websecure}
+      - traefik.http.routers.auth-webhook.tls=true
+      - traefik.http.routers.auth-webhook.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-letsencrypt}
+      # Point Traefik to the app port inside the container
+      - traefik.http.services.auth-webhook.loadbalancer.server.port=8000
+    networks:
+      traefik:
+        aliases:
+          - auth
+    restart: unless-stopped
