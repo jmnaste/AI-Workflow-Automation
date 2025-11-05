@@ -1,6 +1,6 @@
-# API deployment (Option A — private only)
+# API deployment (private by default, optional public webhook)
 
-This folder contains everything needed to build the API image in GitHub Actions and deploy it privately on Hostinger, attached to your existing Traefik network. The API won’t be reachable from the internet; n8n (and other services on the same Docker network) can call it internally as `http://api:8000`.
+This folder contains everything needed to build the API image in GitHub Actions and deploy it on Hostinger, attached to your existing Traefik network. By default the API is private (not reachable from the internet); n8n (and other services on the same Docker network) can call it internally as `http://api:8000`. You can optionally expose a narrow public webhook route via Traefik when needed.
 
 ## Image
 
@@ -21,6 +21,49 @@ DATABASE_URL=postgresql://app_system:YOUR_PASSWORD@postgres:5432/app_db
 ```
 
 4) Deploy. No ports are published and no Traefik router is created; the API runs privately.
+
+## Outbound internet access (egress)
+
+No additional configuration is required for the API to make outbound HTTP(S) calls to public services; Docker provides NATed egress by default. Ensure your VPS firewall allows outbound traffic and DNS resolution works in your environment.
+
+Quick check from outside (through the API):
+
+- `curl -s "http://api:8000/api/egress/health"` → returns `{"status":"ok","url":"https://example.com","code":200}` when outbound works
+- To test a specific endpoint: `curl -s "http://api:8000/api/egress/health?url=https://httpbin.org/status/204"`
+
+## Expose a public webhook (optional)
+
+If you need the API to receive webhooks from external systems, you can enable a narrowly scoped Traefik router that only matches a specific host and path prefix. This keeps the service private by default and only exposes what you intend.
+
+1) In Hostinger → Edit the API project → Environment, add:
+
+```
+# Enable public routing via Traefik
+API_PUBLIC=true
+
+# Router host and path you control (examples)
+API_WEBHOOK_HOST=webhooks.example.com
+API_WEBHOOK_PATH_PREFIX=/webhook
+
+# Traefik entrypoints (typically websecure for HTTPS)
+API_ENTRYPOINTS=websecure
+
+# TLS certificate resolver configured in your Traefik instance
+TRAEFIK_CERT_RESOLVER=letsencrypt
+```
+
+2) Redeploy the project. Traefik will route requests matching:
+
+- Host: `API_WEBHOOK_HOST`
+- Path prefix: `API_WEBHOOK_PATH_PREFIX`
+
+to the API container’s port 8000. Example public URL: `https://webhooks.example.com/webhook/...`
+
+Security tips:
+
+- Use a secret and unpredictable path, e.g., `/webhook/<random-token>`.
+- Consider validating an HMAC signature or token header from the webhook sender.
+- Optionally add Traefik middlewares (rate limit, IP allowlist, basic auth). These can be added as extra `traefik.http.middlewares.*` labels and referenced by the router.
 
 ## How n8n calls the API
 
@@ -49,6 +92,11 @@ If you configured `DATABASE_URL`, you can also check DB connectivity:
   - If your registry or namespace differs, edit the `image:` in the compose file accordingly.
 - Need a fixed version:
   - Replace `:main` with the commit SHA tag published by the workflow (e.g., `:sha-<short>`).
+
+- Public webhook not reachable:
+  - Confirm `API_PUBLIC=true` and `API_WEBHOOK_HOST` are set.
+  - Verify your DNS record points `API_WEBHOOK_HOST` to your Traefik entrypoint IP.
+  - Ensure the specified `TRAEFIK_CERT_RESOLVER` exists in your Traefik configuration, or remove that label to use a preconfigured TLS setup.
 
 ## CI/CD notes
 

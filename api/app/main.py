@@ -15,12 +15,6 @@ def health():
     return {"status": "ok"}
 
 
-@app.get("/api/health2")
-def health2():
-    """Minimal liveness endpoint for UI and n8n checks."""
-    return {"status2": "ok"}
-
-
 @app.get("/api/db/health")
 def db_health():
     """Lightweight DB connectivity check using DATABASE_URL.
@@ -42,3 +36,25 @@ def db_health():
         return {"status": "ok", "database": dbname, "user": user, "version": str(version)}
     except Exception as e:  # pragma: no cover
         raise HTTPException(status_code=500, detail=f"DB check failed: {e}")
+
+
+@app.get("/api/egress/health")
+def egress_health(url: str | None = None):
+    """Simple outbound HTTP check.
+
+    Args:
+        url: Optional override of the target URL. If not provided, uses
+             EXTERNAL_PING_URL env var or defaults to https://example.com.
+
+    Returns:
+        JSON with status ok and the HTTP status code from the target on success.
+    """
+    target = url or os.environ.get("EXTERNAL_PING_URL", "https://example.com")
+    try:
+        import urllib.request
+
+        with urllib.request.urlopen(target, timeout=3) as resp:  # nosec B310
+            code = resp.getcode()
+            return {"status": "ok", "url": target, "code": int(code)}
+    except Exception as e:  # pragma: no cover
+        raise HTTPException(status_code=500, detail=f"Egress failed: {e}")

@@ -2,7 +2,7 @@
 # Attach to your existing Traefik external Docker network so it can resolve internal hostnames like `api`
 
 services:
-  net-debug:
+  netshell:
     image: wbitt/network-multitool:latest
     command: ["sleep", "infinity"]
     labels:

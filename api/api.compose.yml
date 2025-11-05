@@ -16,7 +16,16 @@ services:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=${DATABASE_URL}
     labels:
-      - traefik.enable=false
+      # Keep private by default; set API_PUBLIC=true to expose webhook route(s)
+      - traefik.enable=${API_PUBLIC:-false}
+      - traefik.docker.network=${TRAEFIK_NETWORK}
+      # Public webhook router (optional; enable with API_PUBLIC=true)
+      - traefik.http.routers.api-webhook.rule=Host(`${API_WEBHOOK_HOST}`) && PathPrefix(`${API_WEBHOOK_PATH_PREFIX:-/webhook}`)
+      - traefik.http.routers.api-webhook.entrypoints=${API_ENTRYPOINTS:-websecure}
+      - traefik.http.routers.api-webhook.tls=true
+      - traefik.http.routers.api-webhook.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-letsencrypt}
+      # Point Traefik to the app port inside the container
+      - traefik.http.services.api-webhook.loadbalancer.server.port=8000
     networks:
       traefik:
         aliases:

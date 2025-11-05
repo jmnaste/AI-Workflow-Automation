@@ -14,11 +14,11 @@ The default image is `wbitt/network-multitool:latest` (maintained successor of p
 TRAEFIK_NETWORK=root_default
 ```
 
-4) Deploy. The `net-debug` container will start and attach to the external network.
+4) Deploy. The `netshell` container will start and attach to the external network.
 
 Open a shell:
 - From Hostinger UI → Container → Console; or
-- Via SSH: `docker exec -it net-debug sh`
+- Via SSH: `docker exec -it netshell sh`
 
 Sanity check from inside the container:
 
@@ -48,7 +48,7 @@ If you prefer a reproducible, repository-owned image:
 
 ```
 services:
-  net-debug:
+  netshell:
     image: ghcr.io/jmnaste/ai-workflow-automation/netshell:main
     command: ["sleep", "infinity"]
     labels:
