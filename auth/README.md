@@ -79,12 +79,18 @@ Environment variables:
 
 - `MIGRATE_AT_START`: set to `true` to run Alembic `upgrade head` on container start. Default: disabled.
 - `MIGRATIONS_DATABASE_URL` (optional): if set, overrides `DATABASE_URL` for running migrations.
+- `SERVICE_SEMVER` (optional): semver string to record in the registry/history (defaults to the app version `0.1.0`).
 
 Behavior:
 
 - On start, a small launcher acquires a Postgres advisory lock, executes Alembic `upgrade head`, then launches Uvicorn.
 - The Alembic version table is `auth.alembic_version_auth`.
-- `auth.schema_registry` records the service semantic version and Alembic revision applied.
+- `auth.schema_registry` records the current service semantic version and Alembic revision applied. A historical log is kept in `auth.schema_registry_history`.
+
+### Inspect versions
+
+- Current and recent versions: `GET /auth/versions?n=5` (reverse chronological)
+- Health: `GET /auth/health`
 
 ## Troubleshooting
 

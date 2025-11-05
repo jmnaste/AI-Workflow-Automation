@@ -80,6 +80,44 @@ def migrate_if_enabled() -> None:
     print("Running auth DB migrations to head...", file=sys.stderr)
     command.upgrade(cfg, "head")
     print("Auth DB migrations complete", file=sys.stderr)
+
+    # After successful upgrade, record current revision in registry and append to history if changed
+    try:
+        from app.main import app as fastapi_app  # to read service version
+        service_semver = getattr(fastapi_app, "version", None) or os.environ.get("SERVICE_SEMVER") or "0.0.0"
+    except Exception:
+        service_semver = os.environ.get("SERVICE_SEMVER") or "0.0.0"
+
+    import datetime as _dt
+    ts_key = int(_dt.datetime.utcnow().strftime("%Y%m%d%H%M"))
+
+    with psycopg.connect(db_url, autocommit=True) as conn:
+        with conn.cursor() as cur:
+            # Read current alembic head
+            cur.execute("SELECT version_num FROM auth.alembic_version_auth LIMIT 1")
+            head = (cur.fetchone() or [None])[0]
+            # Read pointer row
+            cur.execute("SELECT alembic_rev FROM auth.schema_registry WHERE service='auth'")
+            row = cur.fetchone()
+            current_rev = row[0] if row else None
+            if head and head != current_rev:
+                # Upsert pointer
+                cur.execute(
+                    (
+                        "INSERT INTO auth.schema_registry(service, semver, ts_key, alembic_rev) "
+                        "VALUES ('auth', %s, %s, %s) "
+                        "ON CONFLICT (service) DO UPDATE SET semver=EXCLUDED.semver, ts_key=EXCLUDED.ts_key, alembic_rev=EXCLUDED.alembic_rev, applied_at=now()"
+                    ),
+                    (service_semver, ts_key, head),
+                )
+                # Append to history
+                cur.execute(
+                    (
+                        "INSERT INTO auth.schema_registry_history(service, semver, ts_key, alembic_rev) "
+                        "VALUES ('auth', %s, %s, %s)"
+                    ),
+                    (service_semver, ts_key, head),
+                )
     finally:
         # Always release lock if we acquired it
         try:
