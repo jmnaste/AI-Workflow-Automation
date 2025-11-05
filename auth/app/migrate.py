@@ -113,9 +113,73 @@ def migrate_if_enabled() -> None:
                             conn.rollback()
                         except Exception:
                             pass
+                # If no head recorded (empty version table), stamp to head so future runs are consistent
+                if not head:
+                    try:
+                        print("Alembic version table empty; stamping to head...", file=sys.stderr)
+                        command.stamp(cfg, "head")
+                        # Re-read after stamping
+                        for stmt in (
+                            "SELECT version_num FROM auth.alembic_version_auth LIMIT 1",
+                            "SELECT version_num FROM public.alembic_version_auth LIMIT 1",
+                            "SELECT version_num FROM auth.alembic_version LIMIT 1",
+                            "SELECT version_num FROM public.alembic_version LIMIT 1",
+                        ):
+                            try:
+                                cur.execute(stmt)
+                                head = (cur.fetchone() or [None])[0]
+                                if head:
+                                    break
+                            except Exception:
+                                try:
+                                    conn.rollback()
+                                except Exception:
+                                    pass
+                    except Exception as e:
+                        # Best effort; proceed to registry update even if stamping failed
+                        print(f"Warning: failed to auto-stamp Alembic head: {e}", file=sys.stderr)
+                # Ensure registry tables exist (belt-and-suspenders in case revisions differed)
+                try:
+                    cur.execute("CREATE SCHEMA IF NOT EXISTS auth")
+                    cur.execute(
+                        """
+                        CREATE TABLE IF NOT EXISTS auth.schema_registry (
+                            service text PRIMARY KEY,
+                            semver text NOT NULL,
+                            ts_key bigint NOT NULL,
+                            alembic_rev text NOT NULL,
+                            applied_at timestamptz NOT NULL DEFAULT now()
+                        )
+                        """
+                    )
+                    cur.execute(
+                        """
+                        CREATE TABLE IF NOT EXISTS auth.schema_registry_history (
+                            id bigserial PRIMARY KEY,
+                            service text NOT NULL,
+                            semver text NOT NULL,
+                            ts_key bigint NOT NULL,
+                            alembic_rev text NOT NULL,
+                            applied_at timestamptz NOT NULL DEFAULT now()
+                        )
+                        """
+                    )
+                except Exception:
+                    # If we can't create (e.g., perms), proceed without fataling
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
                 # Read pointer row
-                cur.execute("SELECT alembic_rev FROM auth.schema_registry WHERE service='auth'")
-                row = cur.fetchone()
+                try:
+                    cur.execute("SELECT alembic_rev FROM auth.schema_registry WHERE service='auth'")
+                    row = cur.fetchone()
+                except Exception:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                    row = None
                 current_rev = row[0] if row else None
                 if head and head != current_rev:
                     # Upsert pointer
