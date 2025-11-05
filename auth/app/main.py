@@ -73,7 +73,7 @@ def versions(n: int = 5):
         raise HTTPException(status_code=500, detail="psycopg not installed in image")
 
     try:
-        with psycopg.connect(dsn, connect_timeout=3) as conn:
+        with psycopg.connect(dsn, connect_timeout=3, autocommit=True) as conn:
             with conn.cursor() as cur:
                 # Try history first
                 try:
@@ -87,16 +87,25 @@ def versions(n: int = 5):
                     )
                     rows = cur.fetchall()
                 except Exception:
+                    # If the first query fails (e.g., history table missing), reset state and fallback
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
                     rows = []
 
                 if not rows:
                     # Fallback to single pointer row
-                    cur.execute(
-                        "SELECT service, semver, ts_key, alembic_rev, applied_at FROM auth.schema_registry WHERE service='auth'"
-                    )
-                    one = cur.fetchone()
-                    if one:
-                        rows = [one]
+                    try:
+                        cur.execute(
+                            "SELECT service, semver, ts_key, alembic_rev, applied_at FROM auth.schema_registry WHERE service='auth'"
+                        )
+                        one = cur.fetchone()
+                        if one:
+                            rows = [one]
+                    except Exception:
+                        # Neither history nor pointer exists yet
+                        rows = []
         return [
             {
                 "service": r[0],
