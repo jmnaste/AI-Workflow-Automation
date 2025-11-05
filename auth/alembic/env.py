@@ -14,6 +14,9 @@ if config.config_file_name is not None:
 
 # Inject DB URL from env
 db_url = os.environ.get("MIGRATIONS_DATABASE_URL") or os.environ.get("DATABASE_URL")
+# Normalize to SQLAlchemy's psycopg v3 driver if a generic URL is provided
+if db_url and db_url.startswith("postgresql://") and "+psycopg" not in db_url:
+    db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
 if not db_url:
     raise RuntimeError("DATABASE_URL or MIGRATIONS_DATABASE_URL must be set for migrations")
 config.set_main_option("sqlalchemy.url", db_url)
