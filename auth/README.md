@@ -21,6 +21,25 @@ DATABASE_URL=postgresql://app_system:YOUR_PASSWORD@postgres:5432/app_db
 
 4) Deploy. No ports are published and no Traefik router is created; the service runs privately.
 
+### Configure the database DSN (DATABASE_URL)
+
+Set the `DATABASE_URL` in the Hostinger Environment panel for this project. The compose file references it as `${DATABASE_URL}`.
+
+Common formats (psycopg):
+
+- Same Docker network (your own Postgres container):
+  - `postgresql://app_system:YOUR_PASSWORD@postgres:5432/app_db`
+  - Replace `postgres` with your Postgres service/alias name on the shared network.
+  - Optional params: `?connect_timeout=3&application_name=auth`
+
+- Managed/external Postgres (public hostname):
+  - `postgresql://USER:PASS@HOST:PORT/DBNAME?sslmode=require&connect_timeout=3&application_name=auth`
+
+Notes:
+- URL‑encode special characters in passwords (e.g., `!` → `%21`).
+- Prefer private networking between containers; require TLS (`sslmode=require`) across public networks.
+- Verify with: `curl -s http://auth:8000/auth/db/health`
+
 ## Outbound internet access (egress)
 
 No additional configuration is required for outbound HTTP(S); Docker provides NATed egress by default. Ensure your VPS allows outbound traffic and DNS resolution is working.
