@@ -30,6 +30,36 @@ Notes
 - Redeploy the project to apply changes. Data persists in the `pgdata` named volume.
 - To reset the database, stop the project, delete the `pgdata` volume (in Hostinger UI), then redeploy (this wipes all data!).
 
+## Connect from DBeaver (safe, no public exposure)
+
+Recommended: use an SSH tunnel and bind Postgres to localhost on the VPS only.
+
+1) Enable localhost binding in compose:
+
+In the Postgres project Environment panel add:
+
+```
+POSTGRES_BIND_LOCALHOST=true
+```
+
+Redeploy. This binds the container to `127.0.0.1:5432` on the VPS only (not public).
+
+2) Configure DBeaver with SSH tunnel:
+
+- Connection type: PostgreSQL
+- Host: 127.0.0.1
+- Port: 5432
+- Database: POSTGRES_DB value
+- Username: POSTGRES_USER value
+- Password: POSTGRES_PASSWORD value
+- SSH tab:
+  - Host: <your VPS public IP or hostname>
+  - Port: 22
+  - User: <your SSH user>
+  - Auth: key or password as configured
+
+DBeaver will establish the SSH tunnel to the VPS and connect to `127.0.0.1:5432` remotely. No internet-exposed DB port required.
+
 ## Connect from other containers (API, n8n)
 
 Use the service hostname `postgres` and port `5432`. Example DSNs:

@@ -11,6 +11,10 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - PGDATA=/var/lib/postgresql/data/pgdata
+    # Optional: bind Postgres to host loopback for local admin tools via SSH tunnel
+    # Enable by setting POSTGRES_BIND_LOCALHOST=true
+    ports:
+      - ${POSTGRES_BIND_LOCALHOST:+127.0.0.1:5432:5432}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
