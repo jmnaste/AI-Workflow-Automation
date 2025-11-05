@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS rate_limits (
     window_start  timestamptz NOT NULL,
     window_seconds int NOT NULL,
     count         int NOT NULL DEFAULT 0,
-    limit         int NOT NULL,
+    limit_value   int NOT NULL,
     UNIQUE (subject_type, subject, window_start, window_seconds)
 );
 
