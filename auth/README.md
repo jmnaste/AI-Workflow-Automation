@@ -71,6 +71,21 @@ Security tips:
 - Validate signatures or tokens from the sender
 - Optionally add Traefik middlewares (rate limit, IP allowlist, basic auth)
 
+## Database migrations (Alembic)
+
+This service owns the `auth` schema and can apply its migrations automatically at startup.
+
+Environment variables:
+
+- `MIGRATE_AT_START`: set to `true` to run Alembic `upgrade head` on container start. Default: disabled.
+- `MIGRATIONS_DATABASE_URL` (optional): if set, overrides `DATABASE_URL` for running migrations.
+
+Behavior:
+
+- On start, a small launcher acquires a Postgres advisory lock, executes Alembic `upgrade head`, then launches Uvicorn.
+- The Alembic version table is `auth.alembic_version_auth`.
+- `auth.schema_registry` records the service semantic version and Alembic revision applied.
+
 ## Troubleshooting
 
 - Service unreachable internally:

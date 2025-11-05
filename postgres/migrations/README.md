@@ -60,4 +60,5 @@ Use `900_cleanup_examples.sql` as a starting point. You can:
 
 - The schema uses `gen_random_uuid()` from `pgcrypto` so no app-side UUID requirement.
 - If you plan to use Alembic in app services later, keep SQL and Alembic aligned (generate Alembic revisions that match this schema).
+- The Auth service now manages its own `auth` schema via Alembic at startup (optional). Prefer that path for creating/upgrading Auth-owned tables; use these raw SQL files only for bootstrapping or admin maintenance.
 - Never commit actual credentials. Set `POSTGRES_USER` and `POSTGRES_DB` via the Hostinger Environment panel.

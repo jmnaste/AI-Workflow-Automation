@@ -15,6 +15,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=${DATABASE_URL}
+      - API_MIN_AUTH_VERSION=${API_MIN_AUTH_VERSION:-}
     labels:
       # Keep private by default; set API_PUBLIC=true to expose webhook route(s)
       - traefik.enable=${API_PUBLIC:-false}

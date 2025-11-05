@@ -101,6 +101,18 @@ If you configured `DATABASE_URL`, you can also check DB connectivity:
 
 - `curl -s http://api:8000/api/db/health`
 
+## Gate API on Auth schema version (optional)
+
+To avoid incompatibilities, you can make the API refuse to start until Auth has applied a minimum schema version.
+
+Set in the API environment:
+
+```
+API_MIN_AUTH_VERSION=0.1.0
+```
+
+On startup, the API will query `auth.schema_registry` in the same database and require that the `auth` service semver is greater than or equal to `API_MIN_AUTH_VERSION`. If the check fails, the API will exit with an error so your orchestrator restarts it after Auth finishes migrations.
+
 ## Troubleshooting
 
 - API unreachable from n8n:
