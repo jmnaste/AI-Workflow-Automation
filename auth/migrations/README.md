@@ -17,7 +17,7 @@ Option A: from the Postgres container (Linux VPS)
 
 ```bash
 # open psql as an admin for app_db
-docker exec -it <postgres_container_name> psql -U db_root -d app_db
+docker exec -it <postgres_container_name> psql -U app_root -d app_db
 
 -- inside psql, run each file in order (adjust path if you copied files into the container)
 \i /app/auth/migrations/0000_init_migration_history.sql
