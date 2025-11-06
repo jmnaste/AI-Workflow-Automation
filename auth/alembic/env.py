@@ -24,8 +24,11 @@ config.set_main_option("sqlalchemy.url", db_url)
 # Target metadata not used (SQL migrations)
 target_metadata = None
 
-# Ensure version table lives in 'auth' schema
+# Ensure version table lives in 'auth' schema and use explicit table name
 config.set_main_option("version_table_schema", "auth")
+# Prefer explicit version table name; fallback to default if not set in ini
+version_table = config.get_main_option("version_table") or "alembic_version_auth"
+version_table_schema = config.get_main_option("version_table_schema") or "auth"
 
 # For multiple schemas support
 include_schemas = True
@@ -38,7 +41,8 @@ def run_migrations_offline() -> None:
         "target_metadata": target_metadata,
         "literal_binds": True,
         "dialect_opts": {"paramstyle": "named"},
-        "version_table_schema": "auth",
+        "version_table": version_table,
+        "version_table_schema": version_table_schema,
         "include_schemas": include_schemas,
     }
     with context.begin_transaction():
@@ -61,7 +65,8 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            version_table_schema="auth",
+            version_table=version_table,
+            version_table_schema=version_table_schema,
             include_schemas=include_schemas,
         )
         with context.begin_transaction():

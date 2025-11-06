@@ -80,11 +80,14 @@ def migrate_if_enabled() -> None:
 
     # Run Alembic upgrade to head and record pointer/history
     try:
-        cfg = Config(os.path.join(os.path.dirname(__file__), "..", "alembic.ini"))
+    cfg = Config(os.path.join(os.path.dirname(__file__), "..", "alembic.ini"))
         # Normalize path
         cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), "..", "alembic"))
         # Let env.py read from env; also set here for good measure
         cfg.set_main_option("sqlalchemy.url", db_url)
+    # Read configured version table fully-qualified target
+    vtable = cfg.get_main_option("version_table") or "alembic_version_auth"
+    vschema = cfg.get_main_option("version_table_schema") or "auth"
 
         print("Running auth DB migrations to head...", file=sys.stderr)
         command.upgrade(cfg, "head")
@@ -105,9 +108,8 @@ def migrate_if_enabled() -> None:
                 # Read current alembic head from the known/likely tables
                 head = None
                 for stmt in (
-                    "SELECT version_num FROM auth.alembic_version_auth LIMIT 1",
-                    "SELECT version_num FROM public.alembic_version_auth LIMIT 1",
-                    "SELECT version_num FROM auth.alembic_version LIMIT 1",
+                    f"SELECT version_num FROM {vschema}.{vtable} LIMIT 1",
+                    f"SELECT version_num FROM {vschema}.alembic_version LIMIT 1",
                     "SELECT version_num FROM public.alembic_version LIMIT 1",
                 ):
                     try:
@@ -132,9 +134,8 @@ def migrate_if_enabled() -> None:
                         command.stamp(cfg, "head")
                         # Re-read after stamping
                         for stmt in (
-                            "SELECT version_num FROM auth.alembic_version_auth LIMIT 1",
-                            "SELECT version_num FROM public.alembic_version_auth LIMIT 1",
-                            "SELECT version_num FROM auth.alembic_version LIMIT 1",
+                            f"SELECT version_num FROM {vschema}.{vtable} LIMIT 1",
+                            f"SELECT version_num FROM {vschema}.alembic_version LIMIT 1",
                             "SELECT version_num FROM public.alembic_version LIMIT 1",
                         ):
                             try:
@@ -151,39 +152,7 @@ def migrate_if_enabled() -> None:
                                     conn.rollback()
                                 except Exception:
                                     pass
-                        # If still no head, force-create version table and seed with Alembic head
-                        if not head:
-                            try:
-                                from alembic.script import ScriptDirectory
-                                script_dir = ScriptDirectory(cfg.get_main_option("script_location"))
-                                alembic_head = script_dir.get_current_head() or (script_dir.get_heads()[0] if script_dir.get_heads() else None)
-                                vtable = cfg.get_main_option("version_table") or "alembic_version"
-                                qualified = f"auth.{vtable}"
-                                print(
-                                    f"!!! AUTH MIGRATION: force-creating version table {qualified} with head {alembic_head}",
-                                    file=sys.stderr,
-                                )
-                                if alembic_head:
-                                    # Create table and insert head
-                                    cur.execute(
-                                        f"CREATE TABLE IF NOT EXISTS {qualified} (version_num VARCHAR(32) PRIMARY KEY)"
-                                    )
-                                    cur.execute(
-                                        f"INSERT INTO {qualified}(version_num) VALUES (%s) ON CONFLICT (version_num) DO NOTHING",
-                                        (alembic_head,),
-                                    )
-                                    # Re-read
-                                    cur.execute(f"SELECT version_num FROM {qualified} LIMIT 1")
-                                    head = (cur.fetchone() or [None])[0]
-                            except Exception as e:
-                                print(
-                                    f"\n!!! AUTH MIGRATION ROLLBACK: failed to force-create/version-table seed\n    error: {e}\n",
-                                    file=sys.stderr,
-                                )
-                                try:
-                                    conn.rollback()
-                                except Exception:
-                                    pass
+                        # Do not force-create the version table; rely on Alembic config to manage it
                     except Exception as e:
                         # Best effort; proceed to registry update even if stamping failed
                         print(f"Warning: failed to auto-stamp Alembic head: {e}", file=sys.stderr)
