@@ -61,5 +61,52 @@ ON CONFLICT (schema_name, file_seq) DO NOTHING;
 ```
 
 - Keep migrations idempotent when feasible using `IF NOT EXISTS` / `ON CONFLICT`.
-- Recommended: disable app-managed migrations while you use these manual SQLs by setting `MIGRATE_AT_START=false` for the Auth container.
-- When you resume app-managed migrations, ensure the Alembic version table matches the latest manual migration.
+- Startup migrations have been removed; the Auth container does not run Alembic on boot. Apply these SQL files explicitly during deploy.
+- For every migration, you must update three things:
+  1) `auth.alembic_version_auth.version_num` — stamp to the new revision identifier.
+  2) `auth.schema_registry` — upsert the current service semver and revision.
+  3) `auth.schema_registry_history` — append a row mirroring the registry pointer.
+
+### Required footer for each new migration
+Replace the placeholders before applying (SEMVER and REVISION). Use UTC for `ts_key`.
+
+```sql
+-- Alembic version stamp (manual)
+CREATE TABLE IF NOT EXISTS auth.alembic_version_auth (
+    version_num VARCHAR(32) PRIMARY KEY
+);
+-- Ensure row exists, then set to the new revision
+INSERT INTO auth.alembic_version_auth(version_num)
+VALUES ('<REVISION>')
+ON CONFLICT (version_num) DO NOTHING;
+UPDATE auth.alembic_version_auth SET version_num = '<REVISION>';
+
+-- Update registry pointer and history
+INSERT INTO auth.schema_registry(service, semver, ts_key, alembic_rev)
+VALUES (
+  'auth',
+  '<SEMVER>',
+  to_char(timezone('UTC', now()), 'YYYYMMDDHH24MI')::bigint,
+  '<REVISION>'
+)
+ON CONFLICT (service) DO UPDATE
+SET semver = EXCLUDED.semver,
+    ts_key = EXCLUDED.ts_key,
+    alembic_rev = EXCLUDED.alembic_rev,
+    applied_at = now();
+
+INSERT INTO auth.schema_registry_history(service, semver, ts_key, alembic_rev, applied_at)
+SELECT service, semver, ts_key, alembic_rev, applied_at
+FROM auth.schema_registry
+WHERE service = 'auth'
+ON CONFLICT DO NOTHING;
+
+-- Record this migration in migration_history (adjust seq/name)
+INSERT INTO auth.migration_history(schema_name, file_seq, name, checksum, notes)
+VALUES ('auth', <SEQ>, '<FILENAME>', md5('<FILENAME>'), 'describe change')
+ON CONFLICT (schema_name, file_seq) DO NOTHING;
+```
+
+Notes:
+- For API gating to take effect, set `API_MIN_AUTH_VERSION` in the API service to the minimal semver your API requires. The API compares this to `auth.schema_registry.semver`.
+- If you plan to return to Alembic-driven upgrades later, prefer using a real Alembic revision ID for `<REVISION>`. If you use a synthetic value (e.g., `manual_0002_20251106`), you will need to `alembic stamp` back to a real revision before resuming Alembic upgrades.

@@ -11,7 +11,7 @@ We’ve pivoted to manual, versioned SQL migrations under `auth/migrations/` as 
 - Manual migrations live in `auth/migrations/` with numbered files: `0000_…`, `0001_…`, etc.
 - A `migration_history` table tracks applied files, checksums, who applied them, and when.
 - The Alembic version table `auth.alembic_version_auth` is stamped to the latest known head (currently `20251105_000002`) so Alembic sees the schema as up-to-date.
-- `MIGRATE_AT_START` is disabled by default in `auth.compose.yml`.
+- Startup migrations have been removed; the container no longer runs Alembic on boot.
 
 ## Keeping Alembic in sync
 If you add a new manual SQL migration and want Alembic to remain aligned:
@@ -24,16 +24,16 @@ Stamps can be done with either:
 
 Important: Do not run `alembic upgrade` while manual SQL is the source of truth. Only use `stamp` to align the pointer.
 
-## Switching back to Alembic-driven upgrades later
-When ready to return to automatic, app-managed Alembic migrations:
-- Ensure the database role has `USAGE, CREATE` on schema `auth` and can write to `auth.alembic_version_auth`.
-- Add a new Alembic revision capturing any changes made during the manual period.
-- Set `MIGRATE_AT_START=true` for the auth service, deploy, and watch logs for a clean `upgrade head`.
-- Keep the manual SQL folder for reference, or retire it once the Alembic revision history fully reflects reality.
+## Switching back to Alembic-driven upgrades later (optional)
+If you decide to reintroduce automatic migrations in the future, you can:
+- Ensure the DB role has `USAGE, CREATE` on `auth` and can write to `auth.alembic_version_auth`.
+- Add a new Alembic revision that reflects changes made during the manual period.
+- Re-enable a startup step (in the launcher) that calls `alembic upgrade head` before starting the server.
+- Keep the manual SQL folder for reference, or retire it once Alembic fully reflects the live schema state.
 
 ## References
 - Active manual SQL: `auth/migrations/`
 - Alembic config: `auth/alembic.ini` and `auth/alembic/env.py`
-- Runtime switch: `MIGRATE_AT_START` in `auth/auth.compose.yml`
+- Runtime: no automatic migrations; manage via `auth/migrations/` and optional `alembic stamp`.
 
 If anything diverges, treat `auth/migrations/` as the canonical source and adjust Alembic by stamping to match the live DB state.

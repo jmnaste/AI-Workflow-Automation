@@ -39,7 +39,7 @@ Service Compose files (copy into Hostinger → Compose → Create Project):
 - Postgres: `postgres/postgres.compose.yml` (private-only; optional localhost bind for SSH-tunneled admin)
 
 Per-service database migrations:
-- Auth manages its own `auth` schema via Alembic; to auto-run on container start, set `MIGRATE_AT_START=true` and provide `DATABASE_URL`.
+- Auth schema changes are applied via manual, versioned SQL in `auth/migrations/`. The container no longer runs Alembic on startup; keep the Alembic version table stamped to match the live schema for API gating compatibility.
 - API can gate startup on Auth’s schema readiness by setting `API_MIN_AUTH_VERSION` (e.g., `0.1.0`).
 
 ## CI/CD

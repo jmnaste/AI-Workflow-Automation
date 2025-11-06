@@ -1,14 +1,9 @@
-"""Auth service launcher that optionally runs DB migrations, then starts Uvicorn."""
+"""Auth service launcher: starts Uvicorn.\n\nMigrations at container startup have been retired in favor of manual,\nversioned SQL under auth/migrations. See auth/alembic/README.md for details.
+"""
 from __future__ import annotations
 import sys
 
-from . import migrate  # noqa: F401
-
-
 def main() -> None:
-    # Run migrations if enabled
-    migrate.migrate_if_enabled()
-
     # Start the ASGI server
     import uvicorn
 

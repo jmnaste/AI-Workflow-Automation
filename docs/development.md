@@ -41,7 +41,7 @@ $env:API_MIN_AUTH_VERSION="0.1.0"
 pip install -r auth/requirements.txt
 
 # If you want migrations at start (requires a running Postgres and DSN):
-$env:MIGRATE_AT_START="true"
+# Startup migrations have been removed; use the manual SQL in auth/migrations and stamp Alembic if needed.
 $env:DATABASE_URL="postgresql://app_system:PASS@localhost:5432/app_db"
 
 python -m app.start  # runs migrations if enabled, then starts Uvicorn

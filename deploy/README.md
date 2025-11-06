@@ -16,4 +16,4 @@ Existing files (reference)
 
 Notes
 - The Traefik resolver name in labels is `mytlschallenge` to match a TLS‑ALPN challenge setup. Keep it consistent with your Traefik service args.
- - For API/Auth per-service migrations: set `MIGRATE_AT_START=true` in the service environment if you want containers to apply Alembic migrations on start (Auth only at present). For inter-service ordering, API supports `API_MIN_AUTH_VERSION` to wait for Auth’s schema.
+ - Per-service migrations at startup have been removed for Auth. Apply manual SQL under `auth/migrations/` during deploy, and keep the Alembic version table stamped to the matching head so API gating via `API_MIN_AUTH_VERSION` remains effective.
