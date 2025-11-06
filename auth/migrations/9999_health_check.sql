@@ -30,4 +30,10 @@ VALUES (
 
 -- 4) Do not record this script in auth.migration_history; it's a pure health check.
 
+-- 5) Output list of applied migrations for debugging (no changes made)
+SELECT schema_name, file_seq, name, applied_by, applied_at, notes
+FROM auth.migration_history
+WHERE schema_name = 'auth'
+ORDER BY file_seq;
+
 COMMIT;
