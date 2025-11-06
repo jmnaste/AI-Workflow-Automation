@@ -80,14 +80,14 @@ def migrate_if_enabled() -> None:
 
     # Run Alembic upgrade to head and record pointer/history
     try:
-    cfg = Config(os.path.join(os.path.dirname(__file__), "..", "alembic.ini"))
+        cfg = Config(os.path.join(os.path.dirname(__file__), "..", "alembic.ini"))
         # Normalize path
         cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), "..", "alembic"))
         # Let env.py read from env; also set here for good measure
         cfg.set_main_option("sqlalchemy.url", db_url)
-    # Read configured version table fully-qualified target
-    vtable = cfg.get_main_option("version_table") or "alembic_version_auth"
-    vschema = cfg.get_main_option("version_table_schema") or "auth"
+        # Read configured version table fully-qualified target
+        vtable = cfg.get_main_option("version_table") or "alembic_version_auth"
+        vschema = cfg.get_main_option("version_table_schema") or "auth"
 
         print("Running auth DB migrations to head...", file=sys.stderr)
         command.upgrade(cfg, "head")
@@ -105,6 +105,34 @@ def migrate_if_enabled() -> None:
 
         with psycopg.connect(db_url, autocommit=True) as conn:
             with conn.cursor() as cur:
+                # Diagnostics: confirm connection target and search_path
+                try:
+                    cur.execute("SELECT current_database(), current_user")
+                    db_user = cur.fetchone()
+                    print(f"--- AUTH MIGRATION DIAG: db={db_user[0]} user={db_user[1]}", file=sys.stderr)
+                    cur.execute("SHOW search_path")
+                    sp = (cur.fetchone() or [None])[0]
+                    print(f"--- AUTH MIGRATION DIAG: search_path={sp}", file=sys.stderr)
+                except Exception as e:
+                    print(f"--- AUTH MIGRATION DIAG: failed to read db/user/search_path: {e}", file=sys.stderr)
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+
+                # Diagnostics: list tables in auth schema
+                try:
+                    cur.execute(
+                        "SELECT table_name FROM information_schema.tables WHERE table_schema='auth' ORDER BY table_name"
+                    )
+                    auth_tables = [r[0] for r in cur.fetchall()]
+                    print(f"--- AUTH MIGRATION DIAG: auth tables={auth_tables}", file=sys.stderr)
+                except Exception as e:
+                    print(f"--- AUTH MIGRATION DIAG: failed to list auth tables: {e}", file=sys.stderr)
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
                 # Read current alembic head from the known/likely tables
                 head = None
                 for stmt in (
