@@ -8,30 +8,33 @@ This folder contains hand-written, idempotent SQL migrations for the `auth` sche
 ## Files
 - `0000_init_migration_history.sql` — creates `auth.migration_history` used to log applied migrations.
 - `0001_auth_bootstrap.sql` — creates initial schema (users, tenants, …), history, stamps `auth.alembic_version_auth` to `20251105_000002`, and seeds `auth.schema_registry` and `auth.schema_registry_history`.
+ - `9999_health_check.sql` — minimal, idempotent health check for psql debugging; logs diagnostics to `auth.migration_health_log` and does NOT change Alembic version or schema_registry.
 
 ## How to run
 
 Run on the server against the `app_db` database, in order, one file at a time.
 
-Option A (recommended): run psql FROM the auth container (it now includes the migration files and psql client)
+Option A (recommended): run psql FROM the auth container (it now includes the migration files and psql client). Specify the Postgres host explicitly with `-h postgres` (service name) so psql uses TCP instead of looking for a local socket.
 
 ```bash
 # Exec into the auth container (replace <auth_container_name>)
-docker exec -it <auth_container_name> psql -U app_root -d app_db 
+docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db 
 
 -- Inside psql (auth container):
 \i /app/auth/migrations/0000_init_migration_history.sql
 \i /app/auth/migrations/0001_auth_bootstrap.sql
+\i /app/auth/migrations/9999_health_check.sql
 ```
 
-Option A2: use a one-shot psql invocation from the auth container without interactive shell:
+Option A2: one-shot psql invocation from the auth container (non-interactive):
 
 ```bash
-docker exec -it <auth_container_name> psql -U app_root -d app_db -f /app/auth/migrations/0000_init_migration_history.sql
-docker exec -it <auth_container_name> psql -U app_root -d app_db -f /app/auth/migrations/0001_auth_bootstrap.sql
+docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /app/auth/migrations/0000_init_migration_history.sql
+docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /app/auth/migrations/0001_auth_bootstrap.sql
+docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /app/auth/migrations/9999_health_check.sql
 ```
 
-Why your previous attempt failed: the path `/app/auth/migrations/...` does not exist inside the **postgres** container; those files are baked into the auth service image. Either run from the auth container, copy them in, or mount them.
+Why your previous attempt failed: the path `/app/auth/migrations/...` does not exist inside the **postgres** container; those files are baked into the auth service image. Also, running `psql` without `-h postgres` inside the auth container makes it try a local UNIX socket (which doesn't exist). Use `-h postgres` (service DNS on the shared network), copy files into the postgres container, or mount them.
 
 Note: If your currently running auth image was built before this change, it may not have psql or the migrations folder yet. In that case, either redeploy with the latest image or use Option B/C below.
 
@@ -43,21 +46,25 @@ docker cp auth/migrations/0000_init_migration_history.sql <postgres_container_na
 docker cp auth/migrations/0001_auth_bootstrap.sql <postgres_container_name>:/tmp/migs/0001_auth_bootstrap.sql
 
 # Enter postgres container
-docker exec -it <postgres_container_name> psql -U app_root -d app_db
+docker exec -it <postgres_container_name> psql -U app_root -d app_db  # socket works here because server runs locally
 
 -- Inside psql:
 \i /tmp/migs/0000_init_migration_history.sql
 \i /tmp/migs/0001_auth_bootstrap.sql
+\i /tmp/migs/9999_health_check.sql
 ```
 
-Option C: using a temporary client container on the same Docker network (mount host migrations directory)
+Option C: using a temporary client container on the same Docker network (mount host migrations directory) — needs `-h postgres` or a full connection string.
 
 ```bash
 docker run --rm -it --network root_default -v $(pwd)/auth/migrations:/migs:ro postgres:16-alpine \
-  psql "postgresql://db_root:YOUR_PASSWORD@postgres:5432/app_db" -f /migs/0000_init_migration_history.sql
+  psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /migs/0000_init_migration_history.sql
 
 docker run --rm -it --network root_default -v $(pwd)/auth/migrations:/migs:ro postgres:16-alpine \
-  psql "postgresql://db_root:YOUR_PASSWORD@postgres:5432/app_db" -f /migs/0001_auth_bootstrap.sql
+  psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /migs/0001_auth_bootstrap.sql
+
+docker run --rm -it --network root_default -v $(pwd)/auth/migrations:/migs:ro postgres:16-alpine \
+  psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /migs/9999_health_check.sql
 ```
 
 Verification queries:
@@ -75,6 +82,12 @@ SELECT * FROM auth.schema_registry_history ORDER BY id DESC LIMIT 5;
 
 -- Migration history should include files you've just applied
 SELECT schema_name, file_seq, name, applied_by, applied_at FROM auth.migration_history ORDER BY file_seq;
+
+-- Health log should show at least one row after 9999
+SELECT id, note, db, usr, search_path, server_version, applied_at FROM auth.migration_health_log ORDER BY id DESC LIMIT 5;
+
+Notes:
+- `9999_health_check.sql` deliberately does NOT modify `auth.alembic_version_auth` or `auth.schema_registry`. It’s safe to run any time to validate connectivity and the psql path.
 ```
 
 ## Conventions
