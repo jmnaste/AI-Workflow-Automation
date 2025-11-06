@@ -151,6 +151,39 @@ def migrate_if_enabled() -> None:
                                     conn.rollback()
                                 except Exception:
                                     pass
+                        # If still no head, force-create version table and seed with Alembic head
+                        if not head:
+                            try:
+                                from alembic.script import ScriptDirectory
+                                script_dir = ScriptDirectory(cfg.get_main_option("script_location"))
+                                alembic_head = script_dir.get_current_head() or (script_dir.get_heads()[0] if script_dir.get_heads() else None)
+                                vtable = cfg.get_main_option("version_table") or "alembic_version"
+                                qualified = f"auth.{vtable}"
+                                print(
+                                    f"!!! AUTH MIGRATION: force-creating version table {qualified} with head {alembic_head}",
+                                    file=sys.stderr,
+                                )
+                                if alembic_head:
+                                    # Create table and insert head
+                                    cur.execute(
+                                        f"CREATE TABLE IF NOT EXISTS {qualified} (version_num VARCHAR(32) PRIMARY KEY)"
+                                    )
+                                    cur.execute(
+                                        f"INSERT INTO {qualified}(version_num) VALUES (%s) ON CONFLICT (version_num) DO NOTHING",
+                                        (alembic_head,),
+                                    )
+                                    # Re-read
+                                    cur.execute(f"SELECT version_num FROM {qualified} LIMIT 1")
+                                    head = (cur.fetchone() or [None])[0]
+                            except Exception as e:
+                                print(
+                                    f"\n!!! AUTH MIGRATION ROLLBACK: failed to force-create/version-table seed\n    error: {e}\n",
+                                    file=sys.stderr,
+                                )
+                                try:
+                                    conn.rollback()
+                                except Exception:
+                                    pass
                     except Exception as e:
                         # Best effort; proceed to registry update even if stamping failed
                         print(f"Warning: failed to auto-stamp Alembic head: {e}", file=sys.stderr)
