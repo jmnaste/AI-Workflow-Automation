@@ -13,18 +13,44 @@ This folder contains hand-written, idempotent SQL migrations for the `auth` sche
 
 Run on the server against the `app_db` database, in order, one file at a time.
 
-Option A: from the Postgres container (Linux VPS)
+Option A (recommended): run psql FROM the auth container (it now includes the migration files and psql client)
 
 ```bash
-# open psql as an admin for app_db
-docker exec -it <postgres_container_name> psql -U app_root -d app_db
+# Exec into the auth container (replace <auth_container_name>)
+docker exec -it <auth_container_name> psql -U app_root -d app_db 
 
--- inside psql, run each file in order (adjust path if you copied files into the container)
+-- Inside psql (auth container):
 \i /app/auth/migrations/0000_init_migration_history.sql
 \i /app/auth/migrations/0001_auth_bootstrap.sql
 ```
 
-Option B: using a temporary client container on the same Docker network
+Option A2: use a one-shot psql invocation from the auth container without interactive shell:
+
+```bash
+docker exec -it <auth_container_name> psql -U app_root -d app_db -f /app/auth/migrations/0000_init_migration_history.sql
+docker exec -it <auth_container_name> psql -U app_root -d app_db -f /app/auth/migrations/0001_auth_bootstrap.sql
+```
+
+Why your previous attempt failed: the path `/app/auth/migrations/...` does not exist inside the **postgres** container; those files are baked into the auth service image. Either run from the auth container, copy them in, or mount them.
+
+Note: If your currently running auth image was built before this change, it may not have psql or the migrations folder yet. In that case, either redeploy with the latest image or use Option B/C below.
+
+Option B: copy migrations into the postgres container first (if you prefer to apply from there)
+
+```bash
+# Copy files into postgres container under /tmp/migs
+docker cp auth/migrations/0000_init_migration_history.sql <postgres_container_name>:/tmp/migs/0000_init_migration_history.sql
+docker cp auth/migrations/0001_auth_bootstrap.sql <postgres_container_name>:/tmp/migs/0001_auth_bootstrap.sql
+
+# Enter postgres container
+docker exec -it <postgres_container_name> psql -U app_root -d app_db
+
+-- Inside psql:
+\i /tmp/migs/0000_init_migration_history.sql
+\i /tmp/migs/0001_auth_bootstrap.sql
+```
+
+Option C: using a temporary client container on the same Docker network (mount host migrations directory)
 
 ```bash
 docker run --rm -it --network root_default -v $(pwd)/auth/migrations:/migs:ro postgres:16-alpine \
