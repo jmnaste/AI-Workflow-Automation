@@ -28,8 +28,11 @@ def migrate_if_enabled() -> None:
         - MIGRATIONS_DATABASE_URL: optional override for DB (falls back to DATABASE_URL)
         - DATABASE_URL: default DB URL
     """
-    if not _truthy(os.environ.get("MIGRATE_AT_START")):
+    mig_flag = os.environ.get("MIGRATE_AT_START")
+    print(f"=== AUTH MIGRATION ENTER === MIGRATE_AT_START={mig_flag}", file=sys.stderr)
+    if not _truthy(mig_flag):
         log.info("Migrations skipped: MIGRATE_AT_START is not enabled")
+        print("=== AUTH MIGRATION SKIP (disabled) ===", file=sys.stderr)
         return
 
     if psycopg is None:
@@ -70,6 +73,11 @@ def migrate_if_enabled() -> None:
                 raise
             time.sleep(delay_seconds)
 
+    # Track summary for logging
+    head_summary = None
+    current_rev_summary = None
+    service_semver_summary = None
+
     # Run Alembic upgrade to head and record pointer/history
     try:
         cfg = Config(os.path.join(os.path.dirname(__file__), "..", "alembic.ini"))
@@ -107,8 +115,12 @@ def migrate_if_enabled() -> None:
                         head = (cur.fetchone() or [None])[0]
                         if head:
                             break
-                    except Exception:
+                    except Exception as e:
                         # Try next
+                        print(
+                            f"\n!!! AUTH MIGRATION ROLLBACK: head probe failed for stmt: {stmt}\n    error: {e}\n",
+                            file=sys.stderr,
+                        )
                         try:
                             conn.rollback()
                         except Exception:
@@ -130,7 +142,11 @@ def migrate_if_enabled() -> None:
                                 head = (cur.fetchone() or [None])[0]
                                 if head:
                                     break
-                            except Exception:
+                            except Exception as e:
+                                print(
+                                    f"\n!!! AUTH MIGRATION ROLLBACK: post-stamp head probe failed for stmt: {stmt}\n    error: {e}\n",
+                                    file=sys.stderr,
+                                )
                                 try:
                                     conn.rollback()
                                 except Exception:
@@ -164,7 +180,11 @@ def migrate_if_enabled() -> None:
                         )
                         """
                     )
-                except Exception:
+                except Exception as e:
+                    print(
+                        f"\n!!! AUTH MIGRATION ROLLBACK: failed to ensure registry/history tables\n    error: {e}\n",
+                        file=sys.stderr,
+                    )
                     # If we can't create (e.g., perms), proceed without fataling
                     try:
                         conn.rollback()
@@ -174,7 +194,11 @@ def migrate_if_enabled() -> None:
                 try:
                     cur.execute("SELECT alembic_rev FROM auth.schema_registry WHERE service='auth'")
                     row = cur.fetchone()
-                except Exception:
+                except Exception as e:
+                    print(
+                        f"\n!!! AUTH MIGRATION ROLLBACK: failed to read schema_registry pointer\n    error: {e}\n",
+                        file=sys.stderr,
+                    )
                     try:
                         conn.rollback()
                     except Exception:
@@ -199,6 +223,14 @@ def migrate_if_enabled() -> None:
                         ),
                         (service_semver, ts_key, head),
                     )
+                # Capture summary for logs
+                head_summary = head
+                current_rev_summary = current_rev
+                service_semver_summary = service_semver
+                print(
+                    f"=== AUTH MIGRATION DONE === head={head_summary} pointer={current_rev_summary} semver={service_semver_summary}",
+                    file=sys.stderr,
+                )
     finally:
         # Always release lock if we acquired it
         try:
@@ -208,6 +240,7 @@ def migrate_if_enabled() -> None:
         except Exception:
             # Best-effort unlock; log and proceed
             pass
+        print("=== AUTH MIGRATION EXIT ===", file=sys.stderr)
 
 
 if __name__ == "__main__":
