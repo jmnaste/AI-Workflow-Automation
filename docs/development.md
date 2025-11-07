@@ -30,7 +30,7 @@ $env:API_MIN_AUTH_VERSION="0.1.0"
 
 ## Auth (FastAPI)
 
-- Owns the `auth` schema and manages migrations via Alembic
+- Owns the `auth` schema and manages migrations via manual, versioned SQL (no Alembic)
 - Entrypoint: Python launcher that can run migrations then start Uvicorn
 - Default port: `8000`
 - Health: `GET /auth/health`
@@ -41,7 +41,7 @@ $env:API_MIN_AUTH_VERSION="0.1.0"
 pip install -r auth/requirements.txt
 
 # If you want migrations at start (requires a running Postgres and DSN):
-# Startup migrations have been removed; use the manual SQL in auth/migrations and stamp Alembic if needed.
+# Startup migrations have been removed; use the manual SQL in auth/migrations. Alembic is no longer used or required.
 $env:DATABASE_URL="postgresql://app_system:PASS@localhost:5432/app_db"
 
 python -m app.start  # runs migrations if enabled, then starts Uvicorn

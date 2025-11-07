@@ -1,4 +1,4 @@
-# Database migrations
+# Database migrations (manual SQL only)
 
 This folder contains SQL migrations you can apply to a brand-new database (or incrementally to an existing one). The initial script creates all tables for users, tenants, OTP, sessions, audit, settings, and rate limits.
 
@@ -59,6 +59,6 @@ Use `900_cleanup_examples.sql` as a starting point. You can:
 ## Notes
 
 - The schema uses `gen_random_uuid()` from `pgcrypto` so no app-side UUID requirement.
-- If you plan to use Alembic in app services later, keep SQL and Alembic aligned (generate Alembic revisions that match this schema).
-- The Auth service now manages its own `auth` schema via Alembic at startup (optional). Prefer that path for creating/upgrading Auth-owned tables; use these raw SQL files only for bootstrapping or admin maintenance.
+- LEGACY (Alembic): Earlier docs referenced optionally using Alembic; current approach is purely manual SQL migrations. If reintroducing a migration tool later, generate revisions that match the canonical SQL here.
+- The Auth service now manages its own `auth` schema via manual SQL migrations (no Alembic). Use these raw SQL files for initial bootstrap of a fresh Postgres instance or admin maintenance tasks.
 - Never commit actual credentials. Set `POSTGRES_USER` and `POSTGRES_DB` via the Hostinger Environment panel.

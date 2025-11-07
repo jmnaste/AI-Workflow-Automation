@@ -79,7 +79,7 @@ def versions(n: int = 5):
                 try:
                     cur.execute(
                         (
-                            "SELECT service, semver, ts_key, alembic_rev, applied_at "
+                            "SELECT service, semver, ts_key, applied_at "
                             "FROM auth.schema_registry_history WHERE service='auth' "
                             "ORDER BY applied_at DESC LIMIT %s"
                         ),
@@ -98,7 +98,7 @@ def versions(n: int = 5):
                     # Fallback to single pointer row
                     try:
                         cur.execute(
-                            "SELECT service, semver, ts_key, alembic_rev, applied_at FROM auth.schema_registry WHERE service='auth'"
+                            "SELECT service, semver, ts_key, applied_at FROM auth.schema_registry WHERE service='auth'"
                         )
                         one = cur.fetchone()
                         if one:
@@ -111,8 +111,7 @@ def versions(n: int = 5):
                 "service": r[0],
                 "semver": r[1],
                 "ts_key": int(r[2]) if r[2] is not None else None,
-                "alembic_rev": r[3],
-                "applied_at": r[4].isoformat() if r[4] is not None else None,
+                "applied_at": (r[3].isoformat() if hasattr(r[3], "isoformat") else str(r[3])) if r[3] is not None else None,
             }
             for r in rows
         ]

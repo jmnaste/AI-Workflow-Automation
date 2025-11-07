@@ -16,4 +16,4 @@ Existing files (reference)
 
 Notes
 - The Traefik resolver name in labels is `mytlschallenge` to match a TLS‑ALPN challenge setup. Keep it consistent with your Traefik service args.
- - Per-service migrations at startup have been removed for Auth. Apply manual SQL under `auth/migrations/` during deploy, and keep the Alembic version table stamped to the matching head so API gating via `API_MIN_AUTH_VERSION` remains effective.
+ - Per-service migrations at startup have been removed for Auth. Apply manual SQL under `auth/migrations/` during deploy. No Alembic stamping is required; API gating uses only `auth.schema_registry.semver`.

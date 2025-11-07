@@ -5,7 +5,7 @@ This repository hosts the reference implementation and documentation for the AI 
 ## Layout
 
 - `api/` — FastAPI boundary service (Python)
-- `auth/` — Auth service (Python), owns the `auth` schema and migrations (Alembic)
+- `auth/` — Auth service (Python), owns the `auth` schema and manual SQL migrations
 - `postgres/` — Private Postgres container project + admin/migrations docs
 - `netshell/` — Minimal network shell container for private debugging
 - `deploy/` — Docker Compose and edge config (Traefik), provider-specific subfolders
@@ -39,7 +39,7 @@ Service Compose files (copy into Hostinger → Compose → Create Project):
 - Postgres: `postgres/postgres.compose.yml` (private-only; optional localhost bind for SSH-tunneled admin)
 
 Per-service database migrations:
-- Auth schema changes are applied via manual, versioned SQL in `auth/migrations/`. The container no longer runs Alembic on startup; keep the Alembic version table stamped to match the live schema for API gating compatibility.
+- Auth schema changes are applied via manual, versioned SQL in `auth/migrations/`. The container does not run Alembic and no Alembic artifacts are required.
 - API can gate startup on Auth’s schema readiness by setting `API_MIN_AUTH_VERSION` (e.g., `0.1.0`).
 
 ## CI/CD

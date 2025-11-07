@@ -1,4 +1,4 @@
-# Manual SQL migrations for Auth
+# Manual SQL migrations for Auth (no Alembic)
 
 This folder contains hand-written, idempotent SQL migrations for the `auth` schema. Each file:
 - Is prefixed with a zero-padded sequence number (e.g., `0001_...`) that defines apply order.
@@ -7,8 +7,10 @@ This folder contains hand-written, idempotent SQL migrations for the `auth` sche
 
 ## Files
 - `0000_init_migration_history.sql` — creates `auth.migration_history` used to log applied migrations.
-- `0001_auth_bootstrap.sql` — creates initial schema (users, tenants, …), history, stamps `auth.alembic_version_auth` to `20251105_000002`, and seeds `auth.schema_registry` and `auth.schema_registry_history`.
- - `9999_health_check.sql` — minimal, idempotent health check for psql debugging; logs diagnostics to `auth.migration_health_log` and does NOT change Alembic version or schema_registry.
+ - `0001_auth_bootstrap.sql` — creates initial schema (users, tenants, …), seeds `auth.schema_registry` and `auth.schema_registry_history`. Historical note: this file also stamped an Alembic version table.
+ - `0002_add_email_to_users.sql` — adds `email text NULL` to `auth.users` and a case-insensitive unique index (`lower(email)`) with `WHERE email IS NOT NULL`; updates registry/history.
+ - `0003_remove_alembic_artifacts.sql` — drops Alembic artifacts (version table and alembic_rev columns) to fully adopt manual SQL.
+ - `9999_health_check.sql` — minimal, idempotent health check for psql debugging; logs diagnostics to `auth.migration_health_log` and does NOT change `auth.schema_registry`.
 
 ## How to run
 
@@ -23,6 +25,8 @@ docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db
 -- Inside psql (auth container):
 \i /auth/migrations/0000_init_migration_history.sql
 \i /auth/migrations/0001_auth_bootstrap.sql
+\i /auth/migrations/0002_add_email_to_users.sql
+\i /auth/migrations/0003_remove_alembic_artifacts.sql
 \i /auth/migrations/9999_health_check.sql
 ```
 
@@ -31,6 +35,8 @@ Option A2: one-shot psql invocation from the auth container (non-interactive):
 ```bash
 docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0000_init_migration_history.sql
 docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0001_auth_bootstrap.sql
+docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0002_add_email_to_users.sql
+docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0003_remove_alembic_artifacts.sql
 docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/9999_health_check.sql
 ```
 
@@ -51,6 +57,8 @@ docker exec -it <postgres_container_name> psql -U app_root -d app_db  # socket w
 -- Inside psql:
 \i /tmp/migs/0000_init_migration_history.sql
 \i /tmp/migs/0001_auth_bootstrap.sql
+\i /tmp/migs/0002_add_email_to_users.sql
+\i /tmp/migs/0003_remove_alembic_artifacts.sql
 \i /tmp/migs/9999_health_check.sql
 ```
 
@@ -64,6 +72,12 @@ docker run --rm -it --network root_default -v $(pwd)/auth/migrations:/migs:ro po
   psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /migs/0001_auth_bootstrap.sql
 
 docker run --rm -it --network root_default -v $(pwd)/auth/migrations:/migs:ro postgres:16-alpine \
+  psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /migs/0002_add_email_to_users.sql
+
+docker run --rm -it --network root_default -v $(pwd)/auth/migrations:/migs:ro postgres:16-alpine \
+  psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /migs/0003_remove_alembic_artifacts.sql
+
+docker run --rm -it --network root_default -v $(pwd)/auth/migrations:/migs:ro postgres:16-alpine \
   psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /migs/9999_health_check.sql
 ```
 
@@ -73,8 +87,9 @@ Verification queries:
 -- Should list all Auth tables
 \dt auth.*
 
--- Alembic version should show 20251105_000002
-SELECT * FROM auth.alembic_version_auth;
+-- Registry pointer and history should have at least one row
+SELECT * FROM auth.schema_registry;
+SELECT * FROM auth.schema_registry_history ORDER BY id DESC LIMIT 5;
 
 -- Registry pointer and history should have at least one row
 SELECT * FROM auth.schema_registry;
@@ -87,7 +102,7 @@ SELECT schema_name, file_seq, name, applied_by, applied_at FROM auth.migration_h
 SELECT id, note, db, usr, search_path, server_version, applied_at FROM auth.migration_health_log ORDER BY id DESC LIMIT 5;
 
 Notes:
-- `9999_health_check.sql` deliberately does NOT modify `auth.alembic_version_auth` or `auth.schema_registry`. It’s safe to run any time to validate connectivity and the psql path.
+- `9999_health_check.sql` deliberately does NOT modify `auth.schema_registry`. It’s safe to run any time to validate connectivity and the psql path.
 ```
 
 ## Conventions
@@ -101,41 +116,28 @@ ON CONFLICT (schema_name, file_seq) DO NOTHING;
 
 - Keep migrations idempotent when feasible using `IF NOT EXISTS` / `ON CONFLICT`.
 - Startup migrations have been removed; the Auth container does not run Alembic on boot. Apply these SQL files explicitly during deploy.
-- For every migration, you must update three things:
-  1) `auth.alembic_version_auth.version_num` — stamp to the new revision identifier.
-  2) `auth.schema_registry` — upsert the current service semver and revision.
-  3) `auth.schema_registry_history` — append a row mirroring the registry pointer.
+- For every migration, you must update:
+  1) `auth.schema_registry` — upsert the current service semver and timestamp key.
+  2) `auth.schema_registry_history` — append a row mirroring the registry pointer (service, semver, ts_key, applied_at).
 
 ### Required footer for each new migration
-Replace the placeholders before applying (SEMVER and REVISION). Use UTC for `ts_key`.
+Replace the placeholders before applying (SEMVER). Use UTC for `ts_key`.
 
 ```sql
--- Alembic version stamp (manual)
-CREATE TABLE IF NOT EXISTS auth.alembic_version_auth (
-    version_num VARCHAR(32) PRIMARY KEY
-);
--- Ensure row exists, then set to the new revision
-INSERT INTO auth.alembic_version_auth(version_num)
-VALUES ('<REVISION>')
-ON CONFLICT (version_num) DO NOTHING;
-UPDATE auth.alembic_version_auth SET version_num = '<REVISION>';
-
--- Update registry pointer and history
-INSERT INTO auth.schema_registry(service, semver, ts_key, alembic_rev)
+-- Update registry pointer and history (no Alembic)
+INSERT INTO auth.schema_registry(service, semver, ts_key)
 VALUES (
   'auth',
   '<SEMVER>',
-  to_char(timezone('UTC', now()), 'YYYYMMDDHH24MI')::bigint,
-  '<REVISION>'
+  to_char(timezone('UTC', now()), 'YYYYMMDDHH24MI')::bigint
 )
 ON CONFLICT (service) DO UPDATE
 SET semver = EXCLUDED.semver,
     ts_key = EXCLUDED.ts_key,
-    alembic_rev = EXCLUDED.alembic_rev,
     applied_at = now();
 
-INSERT INTO auth.schema_registry_history(service, semver, ts_key, alembic_rev, applied_at)
-SELECT service, semver, ts_key, alembic_rev, applied_at
+INSERT INTO auth.schema_registry_history(service, semver, ts_key, applied_at)
+SELECT service, semver, ts_key, applied_at
 FROM auth.schema_registry
 WHERE service = 'auth'
 ON CONFLICT DO NOTHING;
@@ -148,4 +150,3 @@ ON CONFLICT (schema_name, file_seq) DO NOTHING;
 
 Notes:
 - For API gating to take effect, set `API_MIN_AUTH_VERSION` in the API service to the minimal semver your API requires. The API compares this to `auth.schema_registry.semver`.
-- If you plan to return to Alembic-driven upgrades later, prefer using a real Alembic revision ID for `<REVISION>`. If you use a synthetic value (e.g., `manual_0002_20251106`), you will need to `alembic stamp` back to a real revision before resuming Alembic upgrades.

@@ -71,26 +71,42 @@ Security tips:
 - Validate signatures or tokens from the sender
 - Optionally add Traefik middlewares (rate limit, IP allowlist, basic auth)
 
-## Database migrations (Alembic)
+## Database migrations (manual SQL only)
 
-This service owns the `auth` schema and can apply its migrations automatically at startup.
+This service owns the `auth` schema; migrations are applied manually via the numbered SQL files in `auth/migrations/`.
 
-Environment variables:
+Key points:
+- No automatic migration step runs at startup.
+- Each migration file is idempotent where practical and records itself in `auth.migration_history`.
+- Semantic version + timestamp pointer: `auth.schema_registry` (single row for `service='auth'`).
+- History: `auth.schema_registry_history` maintains append-only records for audit.
+- Health / diagnostics: `9999_health_check.sql` can be run safely at any time; it does not mutate versions.
 
-Migrations at container startup have been removed. Use the manual, versioned SQL under `auth/migrations/` to apply changes and keep the Alembic version table stamped for compatibility.
-- `MIGRATIONS_DATABASE_URL` (optional): if set, overrides `DATABASE_URL` for running migrations.
-- `SERVICE_SEMVER` (optional): semver string to record in the registry/history (defaults to the app version `0.1.0`).
+Optional environment variable:
+- `SERVICE_SEMVER`: If set when applying a migration, the footer can upsert that semver into `auth.schema_registry`. If not set, migrations fall back to a default embedded value.
 
-Behavior:
+Apply example inside the auth container (interactive):
 
-On start, the launcher simply starts Uvicorn. Database migrations are not run automatically.
-- The Alembic version table is `auth.alembic_version_auth`.
-- `auth.schema_registry` records the current service semantic version and Alembic revision applied. A historical log is kept in `auth.schema_registry_history`.
+```bash
+docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db
+\i /auth/migrations/0000_init_migration_history.sql
+\i /auth/migrations/0001_auth_bootstrap.sql
+\i /auth/migrations/0002_add_email_to_users.sql
+\i /auth/migrations/0003_remove_alembic_artifacts.sql
+```
+
+Verification queries:
+
+```sql
+SELECT service, semver, ts_key, applied_at FROM auth.schema_registry;
+SELECT service, semver, ts_key, applied_at FROM auth.schema_registry_history ORDER BY id DESC LIMIT 5;
+SELECT schema_name, file_seq, name, applied_at FROM auth.migration_history ORDER BY file_seq;
+```
 
 ### Inspect versions
 
-- Current and recent versions: `GET /auth/versions?n=5` (reverse chronological)
-- Health: `GET /auth/health`
+- Recent applied versions (registry history): `GET /auth/versions?n=5`
+- Service health: `GET /auth/health`
 
 ## Troubleshooting
 

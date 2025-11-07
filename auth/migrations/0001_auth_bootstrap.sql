@@ -1,4 +1,7 @@
--- Manual bootstrap for Auth schema (equivalent to Alembic 000001 + 000002)
+-- Manual bootstrap for Auth schema (historical: originally mirrored early Alembic revisions)
+-- This file intentionally keeps original Alembic-related artifacts only as history.
+-- NOTE: Alembic objects (alembic_version_auth table and alembic_rev columns) are
+--       removed by 0003_remove_alembic_artifacts.sql in current deployments.
 -- Idempotent: uses IF NOT EXISTS and ON CONFLICT where applicable
 
 BEGIN;
@@ -110,7 +113,7 @@ CREATE TABLE IF NOT EXISTS auth.schema_registry (
     service text PRIMARY KEY,
     semver text NOT NULL,
     ts_key bigint NOT NULL,
-    alembic_rev text NOT NULL,
+    -- alembic_rev text NOT NULL,  -- deprecated; dropped by 0003
     applied_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -119,35 +122,27 @@ CREATE TABLE IF NOT EXISTS auth.schema_registry_history (
     service text NOT NULL,
     semver text NOT NULL,
     ts_key bigint NOT NULL,
-    alembic_rev text NOT NULL,
+    -- alembic_rev text NOT NULL,  -- deprecated; dropped by 0003
     applied_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_schema_registry_history_service_applied_at ON auth.schema_registry_history(service, applied_at DESC);
 
--- Alembic version stamp (manual)
-CREATE TABLE IF NOT EXISTS auth.alembic_version_auth (
-    version_num VARCHAR(32) PRIMARY KEY
-);
-INSERT INTO auth.alembic_version_auth(version_num)
-VALUES ('20251105_000002')
-ON CONFLICT (version_num) DO NOTHING;
+-- (Deprecated) Alembic version table omitted in current workflow.
 
 -- Seed pointer and history
-INSERT INTO auth.schema_registry(service, semver, ts_key, alembic_rev)
+INSERT INTO auth.schema_registry(service, semver, ts_key)
 VALUES (
-  'auth',
-  COALESCE(current_setting('SERVICE_SEMVER', true), '0.1.1'),
-  to_char(timezone('UTC', now()), 'YYYYMMDDHH24MI')::bigint,
-  '20251105_000002'
+    'auth',
+    COALESCE(current_setting('SERVICE_SEMVER', true), '0.1.1'),
+    to_char(timezone('UTC', now()), 'YYYYMMDDHH24MI')::bigint
 )
 ON CONFLICT (service) DO UPDATE
 SET semver = EXCLUDED.semver,
-    ts_key = EXCLUDED.ts_key,
-    alembic_rev = EXCLUDED.alembic_rev,
-    applied_at = now();
+        ts_key = EXCLUDED.ts_key,
+        applied_at = now();
 
-INSERT INTO auth.schema_registry_history(service, semver, ts_key, alembic_rev, applied_at)
-SELECT service, semver, ts_key, alembic_rev, applied_at
+INSERT INTO auth.schema_registry_history(service, semver, ts_key, applied_at)
+SELECT service, semver, ts_key, applied_at
 FROM auth.schema_registry
 ON CONFLICT DO NOTHING;
 

@@ -1,4 +1,7 @@
-"""Auth service launcher: starts Uvicorn.\n\nMigrations at container startup have been retired in favor of manual,\nversioned SQL under auth/migrations. See auth/alembic/README.md for details.
+"""Auth service launcher: starts Uvicorn.
+
+Migrations at container startup have been retired in favor of manual,
+versioned SQL under auth/migrations. Alembic has been removed.
 """
 from __future__ import annotations
 import sys

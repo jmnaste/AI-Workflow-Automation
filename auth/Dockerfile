@@ -13,10 +13,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends postgresql-client ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy application and Alembic migration assets
+# Copy application and manual SQL migrations only (no Alembic)
 COPY app ./app
-COPY alembic.ini ./alembic.ini
-COPY alembic ./alembic
 # Copy manual SQL migrations into image at /auth/migrations
 COPY migrations ./migrations
 EXPOSE 8000

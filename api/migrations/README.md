@@ -9,6 +9,7 @@ This folder contains hand-written, idempotent SQL migrations for the `api` schem
 - `0000_init_migration_history.sql` — creates `api.migration_history` used to log applied migrations.
 - `0001_api_bootstrap.sql` — creates the minimal `api.settings` table.
  - `9999_health_check.sql` — minimal, idempotent health check for psql debugging; logs diagnostics to `api.migration_health_log` and does NOT change versions.
+ - `_TEMPLATE_next_migration.sql` — starter template for future migrations (columns, tables, indexes, backfill pattern).
 
 ## How to run
 
@@ -78,7 +79,9 @@ SELECT id, note, db, usr, search_path, server_version, applied_at FROM api.migra
 ```
 
 ## Conventions
-- New migrations: copy `0001_api_bootstrap.sql` as a template, increment the number, and put only your changes. End with an INSERT into `api.migration_history` like:
+- Preferred: copy `_TEMPLATE_next_migration.sql`, rename to the next sequence (e.g. `0002_add_feature_flag.sql`), and implement only the new DDL plus the footer.
+- Alternative: copy `0001_api_bootstrap.sql` if you need a table creation example.
+- Every migration must end with an INSERT into `api.migration_history`:
 
 ```sql
 INSERT INTO api.migration_history(schema_name, file_seq, name, checksum, notes)
@@ -87,4 +90,41 @@ ON CONFLICT (schema_name, file_seq) DO NOTHING;
 ```
 
 - Keep migrations idempotent when feasible using `IF NOT EXISTS` / `ON CONFLICT`.
-- API does not gate on its own schema version here; gating is currently based on Auth via `API_MIN_AUTH_VERSION`.
+- API does not gate on its own schema version yet; gating is currently based on Auth via `API_MIN_AUTH_VERSION`.
+
+### Optional future: API semver registry
+If later required (e.g. another service depends on explicit API schema version), add:
+
+```sql
+CREATE TABLE IF NOT EXISTS api.schema_registry (
+  service text PRIMARY KEY,
+  semver text NOT NULL,
+  ts_key bigint NOT NULL,
+  applied_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS api.schema_registry_history (
+  id bigserial PRIMARY KEY,
+  service text NOT NULL,
+  semver text NOT NULL,
+  ts_key bigint NOT NULL,
+  applied_at timestamptz NOT NULL DEFAULT now()
+);
+```
+
+Then in each migration (after your DDL):
+
+```sql
+INSERT INTO api.schema_registry(service, semver, ts_key)
+VALUES ('api', '<SEMVER>', to_char(timezone('UTC', now()), 'YYYYMMDDHH24MI')::bigint)
+ON CONFLICT (service) DO UPDATE
+SET semver = EXCLUDED.semver,
+    ts_key = EXCLUDED.ts_key,
+    applied_at = now();
+
+INSERT INTO api.schema_registry_history(service, semver, ts_key, applied_at)
+SELECT service, semver, ts_key, applied_at FROM api.schema_registry WHERE service='api'
+ON CONFLICT DO NOTHING;
+```
+
+Only introduce this when a consumer exists; until then it adds noise without benefit.
