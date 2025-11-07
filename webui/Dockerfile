@@ -3,7 +3,7 @@ FROM node:20-alpine AS build
 WORKDIR /app
 # Copy only manifest files first (supports npm/yarn/pnpm where present)
 COPY package*.json ./
-RUN npm ci || npm install
+RUN npm install --no-fund --no-audit --legacy-peer-deps
 COPY . .
 RUN npm run build
 
