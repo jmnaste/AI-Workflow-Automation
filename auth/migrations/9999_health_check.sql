@@ -1,5 +1,5 @@
 -- Health-check migration for debugging psql-based runs
--- Idempotent and non-intrusive: DOES NOT change Alembic version or schema_registry pointer.
+-- Idempotent and non-intrusive: DOES NOT change schema_registry pointer.
 -- Safe to re-run. Intended purely to validate the psql execution path and DB connectivity.
 
 BEGIN;
@@ -25,7 +25,7 @@ VALUES (
     version()
 );
 
--- 3) DO NOT modify auth.alembic_version_auth or schema_registry in this file
+-- 3) DO NOT modify schema_registry in this file
 --    This script is strictly for path/connection verification.
 
 -- 4) Do not record this script in auth.migration_history; it's a pure health check.
