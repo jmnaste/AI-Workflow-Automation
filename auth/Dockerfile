@@ -4,7 +4,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-WORKDIR /app
+WORKDIR /auth
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -17,7 +17,7 @@ RUN apt-get update \
 COPY app ./app
 COPY alembic.ini ./alembic.ini
 COPY alembic ./alembic
-# Copy manual SQL migrations into image at /app/auth/migrations
-COPY migrations ./auth/migrations
+# Copy manual SQL migrations into image at /auth/migrations
+COPY migrations ./migrations
 EXPOSE 8000
 CMD ["python", "-m", "app.start"]

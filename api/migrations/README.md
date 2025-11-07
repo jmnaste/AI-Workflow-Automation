@@ -21,19 +21,19 @@ Option A (recommended): run psql FROM the api container (it includes the migrati
 docker exec -it <api_container_name> psql -h postgres -U app_root -d app_db
 
 -- Inside psql (api container):
-\i /app/api/migrations/0000_init_migration_history.sql
-\i /app/api/migrations/0001_api_bootstrap.sql
-\i /app/api/migrations/9999_health_check.sql
+\i /api/migrations/0000_init_migration_history.sql
+\i /api/migrations/0001_api_bootstrap.sql
+\i /api/migrations/9999_health_check.sql
 ```
 
 Option A2: one-shot psql invocations from the api container (non-interactive):
 
 ```bash
-docker exec -it <api_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /app/api/migrations/0000_init_migration_history.sql
+docker exec -it <api_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /api/migrations/0000_init_migration_history.sql
 
-docker exec -it <api_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /app/api/migrations/0001_api_bootstrap.sql
+docker exec -it <api_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /api/migrations/0001_api_bootstrap.sql
 
-docker exec -it <api_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /app/api/migrations/9999_health_check.sql
+docker exec -it <api_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /api/migrations/9999_health_check.sql
 ```
 
 Option B: copy migrations into the postgres container first (if you prefer to apply from there)

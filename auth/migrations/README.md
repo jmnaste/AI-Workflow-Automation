@@ -21,20 +21,20 @@ Option A (recommended): run psql FROM the auth container (it now includes the mi
 docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db 
 
 -- Inside psql (auth container):
-\i /app/auth/migrations/0000_init_migration_history.sql
-\i /app/auth/migrations/0001_auth_bootstrap.sql
-\i /app/auth/migrations/9999_health_check.sql
+\i /auth/migrations/0000_init_migration_history.sql
+\i /auth/migrations/0001_auth_bootstrap.sql
+\i /auth/migrations/9999_health_check.sql
 ```
 
 Option A2: one-shot psql invocation from the auth container (non-interactive):
 
 ```bash
-docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /app/auth/migrations/0000_init_migration_history.sql
-docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /app/auth/migrations/0001_auth_bootstrap.sql
-docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /app/auth/migrations/9999_health_check.sql
+docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0000_init_migration_history.sql
+docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0001_auth_bootstrap.sql
+docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/9999_health_check.sql
 ```
 
-Why your previous attempt failed: the path `/app/auth/migrations/...` does not exist inside the **postgres** container; those files are baked into the auth service image. Also, running `psql` without `-h postgres` inside the auth container makes it try a local UNIX socket (which doesn't exist). Use `-h postgres` (service DNS on the shared network), copy files into the postgres container, or mount them.
+Why your previous attempt failed: the path `/auth/migrations/...` does not exist inside the **postgres** container; those files are baked into the auth service image. Also, running `psql` without `-h postgres` inside the auth container makes it try a local UNIX socket (which doesn't exist). Use `-h postgres` (service DNS on the shared network), copy files into the postgres container, or mount them.
 
 Note: If your currently running auth image was built before this change, it may not have psql or the migrations folder yet. In that case, either redeploy with the latest image or use Option B/C below.
 
