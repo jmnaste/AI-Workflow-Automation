@@ -1,0 +1,15 @@
+version: '3.9'
+
+services:
+  webui-local:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/jmnaste/ai-workflow-automation/webui:local
+    container_name: webui-local
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    volumes:
+      # Optional: map images for rapid iteration of branding without rebuilding
+      - ../images:/usr/share/nginx/html/images:ro

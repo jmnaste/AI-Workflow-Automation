@@ -1,0 +1,15 @@
+node_modules
+.dist
+dist
+.vite
+.git
+.github
+.gitignore
+Dockerfile
+nginx.conf
+.vscode
+coverage
+*.log
+**/*.test.*
+**/__tests__/**
+**/__mocks__/**
