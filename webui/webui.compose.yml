@@ -5,8 +5,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/jmnaste/ai-workflow-automation/webui:local
-    container_name: webui-local
+    image: ghcr.io/jmnaste/ai-workflow-automation/webui
+    container_name: webui
     restart: unless-stopped
     ports:
       - "5173:80"

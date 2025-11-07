@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-  - 'webui/**'
+      - 'webui/**'
       - '.github/workflows/build-webui.yml'
   workflow_dispatch: {}
 
