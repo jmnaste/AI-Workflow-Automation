@@ -6,7 +6,8 @@ dist
 .github
 .gitignore
 Dockerfile
-nginx.conf
+# Allow nginx.conf into build context so COPY succeeds in Dockerfile
+# nginx.conf
 .vscode
 coverage
 *.log
