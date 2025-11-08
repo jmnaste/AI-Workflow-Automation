@@ -11,6 +11,8 @@ services:
   auth:
     image: ghcr.io/jmnaste/ai-workflow-automation/auth:main
     pull_policy: always
+    container_name: auth
+    restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=${DATABASE_URL}
@@ -30,4 +32,3 @@ services:
       traefik:
         aliases:
           - auth
-    restart: unless-stopped

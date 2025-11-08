@@ -1,15 +1,45 @@
-version: '3.9'
+# ================================================================
+# IMPORTANT: Hostinger VPS deployment compose for WebUI
+#
+# This file is for VPS deployment ONLY.
+# - Target: Hostinger VPS behind Traefik
+# - Expect: prebuilt image from GHCR pulled by Compose
+# - Do NOT use this for local preview; use local.compose.yml instead.
+# ================================================================
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK}
 
 services:
-  webui-local:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: ghcr.io/jmnaste/ai-workflow-automation/webui
+  webui:
+    image: ghcr.io/jmnaste/ai-workflow-automation/webui:main
+    pull_policy: always
     container_name: webui
     restart: unless-stopped
-    ports:
-      - "5173:80"
-    volumes:
-      # Optional: map images for rapid iteration of branding without rebuilding
-      - ../images:/usr/share/nginx/html/images:ro
+    environment:
+      # Environment variables for Hostinger VPS runtime
+      # Note: The SPA is served statically by Nginx; these are available to the
+      # container at runtime but are not consumed by the built assets unless you
+      # add a runtime injection step. They are still useful for ops/debugging or
+      # future env-injection.
+      - NODE_ENV=production
+      - UI_HOST=${UI_HOST}
+      - TRAEFIK_NETWORK=${TRAEFIK_NETWORK}
+      - UI_ENTRYPOINTS=${UI_ENTRYPOINTS:-websecure}
+      - TRAEFIK_CERT_RESOLVER=${TRAEFIK_CERT_RESOLVER:-letsencrypt}
+      # App path hints (proxied by Nginx)
+      - API_BASE_PATH=${API_BASE_PATH:-/api}
+      - AUTH_BASE_PATH=${AUTH_BASE_PATH:-/auth}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK}
+      - traefik.http.routers.webui.rule=Host(`${UI_HOST}`)
+      - traefik.http.routers.webui.entrypoints=${UI_ENTRYPOINTS:-websecure}
+      - traefik.http.routers.webui.tls=true
+      - traefik.http.routers.webui.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-letsencrypt}
+      - traefik.http.services.webui.loadbalancer.server.port=80
+    networks:
+      traefik:
+        aliases:
+          - webui

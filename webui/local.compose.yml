@@ -1,3 +1,10 @@
+# ================================================================
+# IMPORTANT: Local development / preview compose for WebUI
+#
+# This file is for LOCAL USE ONLY.
+# - Provides rapid iteration with local build context.
+# - Not for Hostinger VPS deployment. Use webui.compose.yml there.
+# ================================================================
 version: '3.9'
 
 services:
