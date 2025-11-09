@@ -1,6 +1,19 @@
 # Prompt Log (minimal Q/A)
 
 Entries are appended in reverse chronological order.
+
+**Format**: `YYYY-MM-DD HH:MM — Topic`
+
+**Instructions for Copilot**: 
+- User will request prompt log update by saying: **"I want to commit and update prompt log"**
+- **Log only significant prompts** (architectural decisions, feature requests, workflow changes)
+- Skip trivial requests (clarifications, small fixes, acknowledgments)
+- When requested, add entry with:
+  - Timestamp in YYYY-MM-DD HH:MM format
+  - Full prompt text (no ellipsis)
+  - **Synthetic answer** (1-2 sentences max, focus on what was done)
+- Then proceed with commit workflow (check last commit, propose semantic message)
+
 ---
 
 ## 2025-10-31 — Hostinger deployment help
@@ -28,3 +41,25 @@ Please have a file where you log prompt I post and a really minimal answer of yo
 In the prompt_log.md I want the entire prompt, no ellipsis
 ```
 - Answer (minimal): Will log full prompts going forward; updated previous entry.
+
+---
+
+## 2025-11-09 14:30 — Prompt logging and commit workflow
+- Prompt:
+```
+From now on I want that the prompt_log.md file be filled with pertinent prompts. The prompt should carry date and time aaaa-mm-dd hh.mm. What do I do for copilot not forget to maintain this? Also, can I during conversation ask for commit, I say I want to commit, copilot knows when was last commit and propose a synthetic phrase for commit description. 
+
+Please make sure the file 3.Engineering_method_vibe.md is fully and correctly describing this way of working, there is I think already a section but make sure it is complete with regard with the current request of mine.
+```
+- Answer (minimal): Updated prompt_log.md with instructions for Copilot; added "Commit Workflow with Copilot" section to 3.Engineering_method_vibe.md; documented prompt logging process. User can now say "I want to commit" and Copilot will propose semantic commit message based on git diff since last commit (2025-11-09 11:26 "refine ui style").
+
+---
+
+## 2025-11-09 14:45 — Refined prompt logging workflow
+- Prompt:
+```
+In the meantime I have decided that I will ask for prompt_log update along with I want to commit request. I should ask something like: I want to commit and update prompt log?
+
+Remember to log only significant prompts, not all is required and although you save the prompt completly the AI answer need to be synthetic (short).
+```
+- Answer: Combined commit and prompt log update into single workflow trigger: "I want to commit and update prompt log". Updated both files to specify logging only significant prompts (architecture, features, workflows) with synthetic 1-2 sentence answers.
