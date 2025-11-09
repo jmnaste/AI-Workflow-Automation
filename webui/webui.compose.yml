@@ -28,9 +28,12 @@ services:
       - TRAEFIK_NETWORK=${TRAEFIK_NETWORK}
       - UI_ENTRYPOINTS=${UI_ENTRYPOINTS:-websecure}
       - TRAEFIK_CERT_RESOLVER=${TRAEFIK_CERT_RESOLVER:-letsencrypt}
-      # App path hints (proxied by Nginx)
-      - API_BASE_PATH=${API_BASE_PATH:-/api}
-      - AUTH_BASE_PATH=${AUTH_BASE_PATH:-/auth}
+      # BFF backend service URLs (Docker DNS names)
+      - API_BASE_URL=${API_BASE_URL:-http://api:8000}
+      - AUTH_BASE_URL=${AUTH_BASE_URL:-http://auth:8000}
+      # JWT configuration (must match Auth service)
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_COOKIE_NAME=${JWT_COOKIE_NAME:-flovify_token}
     labels:
       - traefik.enable=true
       - traefik.docker.network=${TRAEFIK_NETWORK}

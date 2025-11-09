@@ -15,49 +15,69 @@ A React + TypeScript SPA served by Nginx with Traefik routing. The WebUI proxies
 
 ```
 TRAEFIK_NETWORK=root_default
-UI_HOST=app.yourdomain.com
+UI_HOST=console.flovify.ca
 UI_ENTRYPOINTS=websecure
 TRAEFIK_CERT_RESOLVER=letsencrypt
 NODE_ENV=production
-API_BASE_PATH=/api
-AUTH_BASE_PATH=/auth
+API_BASE_URL=http://api:8000
+AUTH_BASE_URL=http://auth:8000
+JWT_SECRET=placeholder-until-auth-service-implemented
+JWT_COOKIE_NAME=flovify_token
 ```
 
-4) Deploy. Traefik will route `https://app.yourdomain.com` to the WebUI container on port 80.
+**Note:** `JWT_SECRET` is not currently used since authentication is not yet implemented. Use a placeholder value for now. When you implement the Auth service, generate a secure secret:
+```bash
+openssl rand -base64 32
+```
+Then use the same secret in both Auth and WebUI services.
+
+4) Deploy. Traefik will route `https://console.flovify.ca` to the WebUI container on port 80.
 
 ### Environment Variables Explained
 
 | Variable | Purpose | Example Value |
 |----------|---------|---------------|
 | `TRAEFIK_NETWORK` | Shared Docker network name where Traefik, API, Auth, and WebUI reside | `root_default` |
-| `UI_HOST` | Public hostname for the UI (must match your DNS A record) | `app.yourdomain.com` |
+| `UI_HOST` | Public hostname for the UI (must match your DNS A record) | `console.flovify.ca` |
 | `UI_ENTRYPOINTS` | Traefik entrypoint(s) to bind (websecure = HTTPS/443) | `websecure` |
 | `TRAEFIK_CERT_RESOLVER` | Traefik cert resolver name for automatic TLS | `letsencrypt` |
 | `NODE_ENV` | Runtime environment indicator | `production` |
-| `API_BASE_PATH` | Path prefix for API proxy inside Nginx (same-origin routing) | `/api` |
-| `AUTH_BASE_PATH` | Path prefix for Auth proxy inside Nginx (same-origin routing) | `/auth` |
+| `API_BASE_URL` | Internal Docker DNS URL for API service (used by BFF) | `http://api:8000` |
+| `AUTH_BASE_URL` | Internal Docker DNS URL for Auth service (used by BFF) | `http://auth:8000` |
+| `JWT_SECRET` | Secret key for JWT validation (must match Auth service) | `your-secret-key-change-in-production` |
+| `JWT_COOKIE_NAME` | Name of the JWT cookie (must match Auth service) | `flovify_token` |
 
 **Important notes:**
 
-- The SPA is built at CI time and served statically by Nginx. Environment variables are available to the container at runtime but **are not injected into the built JavaScript** unless you add a runtime config injection step.
-- The current setup uses these envs for documentation/debugging; the UI relies on Nginx proxy rules to route `/api/*` → `http://api:8000/` and `/auth/*` → `http://auth:8000/` via Docker DNS.
-- If you need dynamic frontend config (e.g., feature flags, API base URLs), add a runtime injection script or serve a `/config.json` endpoint.
+- The SPA is built at CI time and served statically by Nginx. Environment variables are available to the BFF (Express server) at runtime.
+- The BFF uses `API_BASE_URL` and `AUTH_BASE_URL` to communicate with backend services via Docker DNS (private network).
+- `JWT_SECRET` must match the secret configured in the Auth service for JWT validation.
+- The frontend makes API calls to `/bff/*` endpoints only; the BFF mediates all backend communication.
 
 ### DNS Configuration
 
-Before deploying, ensure your DNS has an A record pointing `app.yourdomain.com` to your Hostinger VPS public IP. Traefik will automatically provision a Let's Encrypt certificate via the ACME HTTP-01 challenge.
+Before deploying, ensure your DNS has an A record pointing `console.flovify.ca` to your Hostinger VPS public IP. Traefik will automatically provision a Let's Encrypt certificate via the ACME HTTP-01 challenge.
 
 ## Architecture & Proxying
 
-The WebUI Nginx configuration proxies backend services through same-origin paths:
+The WebUI uses a BFF (Backend for Frontend) pattern:
 
-- **`/api/`** → proxies to `http://api:8000/` (API service container)
-- **`/auth/`** → proxies to `http://auth:8000/` (Auth service container)
+- **Nginx** serves the React SPA and proxies `/bff/*` to Express server on port 3001
+- **BFF (Express)** handles all backend communication, JWT validation, and cookie management
+- **API and Auth services** are completely private (no direct browser access)
+
+Request flow:
+```
+Browser → Traefik (TLS) → Nginx (port 80) → BFF (port 3001) → API/Auth (Docker DNS)
+```
+
+Nginx routes:
+- **`/bff/`** → proxies to `http://localhost:3001/bff/` (Express BFF server)
 - **`/ui/health`** → local health endpoint returning `{"status":"ok","service":"ui"}`
 - **`/images/`** → serves static assets from `/usr/share/nginx/html/images/`
 - **`/*`** → SPA fallback to `index.html` for client-side routing
 
-This design eliminates CORS and simplifies frontend API calls (relative paths like `fetch('/api/health')`).
+This design ensures security (backend services hidden), eliminates CORS, and centralizes authentication/authorization in the BFF.
 
 ## Health Check
 
@@ -75,21 +95,37 @@ Expected response:
 
 ## Backend Service Requirements
 
-The WebUI expects these backend services to be available on the same Traefik network:
+The WebUI's BFF (Backend for Frontend) expects these backend services to be available on the same Docker network:
 
-- **`api`** container at `http://api:8000` (for `/api/*` proxying)
-- **`auth`** container at `http://auth:8000` (for `/auth/*` proxying)
+- **`api`** container at `http://api:8000` (BFF proxies to API service)
+- **`auth`** container at `http://auth:8000` (BFF proxies to Auth service)
 
-Verify internal DNS resolution from another container on the network:
+**Important:** API and Auth services are completely private. The browser cannot access them directly. All requests go through the BFF at `/bff/*` endpoints.
+
+Verify internal DNS resolution from the webui container:
 
 ```bash
-docker exec -it webui curl -s http://api:8000/api/health
-docker exec -it webui curl -s http://auth:8000/auth/health
+docker exec -it webui wget -qO- http://api:8000/health
+docker exec -it webui wget -qO- http://auth:8000/health
 ```
 
 If these fail, ensure:
 - All services (`webui`, `api`, `auth`) are on the same `TRAEFIK_NETWORK`.
 - Each service has the correct network alias (`api`, `auth`, `webui`).
+
+## BFF Health Check
+
+The BFF (Express server) runs inside the webui container on port 3001 and is proxied by Nginx at `/bff/*`:
+
+```bash
+curl -s https://console.flovify.ca/bff/health
+```
+
+Expected response:
+
+```json
+{"status":"healthy","service":"bff","timestamp":"2025-11-09T03:25:55.533Z","environment":"production","version":"1.0.0"}
+```
 
 ## Optional: Runtime Environment Injection
 
