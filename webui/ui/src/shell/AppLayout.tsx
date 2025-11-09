@@ -22,22 +22,24 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import LoginIcon from '@mui/icons-material/Login';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import Navigation from './Navigation';
+import { getSession, signOut } from '../lib/auth.js';
 
 const DRAWER_WIDTH_EXPANDED = 240;
 const DRAWER_WIDTH_COLLAPSED = 64;
 
 export default function AppLayout() {
   const theme = useTheme();
+  const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [drawerExpanded, setDrawerExpanded] = useState(true);
   const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
   
-  // TODO: Replace with actual auth state
-  const isAuthenticated = false;
-  const user = { name: 'John Doe', email: 'john@flovify.ca' };
+  const session = getSession();
+  const isAuthenticated = session.isAuthenticated;
+  const user = session.user;
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -55,9 +57,10 @@ export default function AppLayout() {
     setUserMenuAnchor(null);
   };
 
-  const handleSignOut = () => {
-    // TODO: Implement sign out
+  const handleSignOut = async () => {
     handleUserMenuClose();
+    await signOut();
+    navigate('/sign-in');
   };
 
   const drawerWidth = drawerExpanded ? DRAWER_WIDTH_EXPANDED : DRAWER_WIDTH_COLLAPSED;
@@ -96,7 +99,7 @@ export default function AppLayout() {
                 <Tooltip title="Account">
                   <IconButton onClick={handleUserMenuOpen} size="small">
                     <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-                      {user.name.charAt(0)}
+                      {user?.email.charAt(0).toUpperCase()}
                     </Avatar>
                   </IconButton>
                 </Tooltip>
@@ -114,10 +117,10 @@ export default function AppLayout() {
                 >
                   <Box sx={{ px: 2, py: 1.5 }}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                      {user.name}
+                      {user?.email.split('@')[0]}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {user.email}
+                      {user?.email}
                     </Typography>
                   </Box>
                   <Divider />
@@ -144,7 +147,7 @@ export default function AppLayout() {
               </>
             ) : (
               <Tooltip title="Sign in">
-                <IconButton size="small">
+                <IconButton size="small" onClick={() => navigate('/sign-in')}>
                   <LoginIcon />
                 </IconButton>
               </Tooltip>

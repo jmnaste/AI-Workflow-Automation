@@ -63,3 +63,14 @@ In the meantime I have decided that I will ask for prompt_log update along with 
 Remember to log only significant prompts, not all is required and although you save the prompt completly the AI answer need to be synthetic (short).
 ```
 - Answer: Combined commit and prompt log update into single workflow trigger: "I want to commit and update prompt log". Updated both files to specify logging only significant prompts (architecture, features, workflows) with synthetic 1-2 sentence answers.
+
+---
+
+## 2025-11-09 15:00 — OTP-based passwordless authentication UI
+- Prompt:
+```
+Yes we start with simple jwt auth. Also, user identifies itself with email and then we ask his phone number and indicate if he wants otp over email or sms. The login don't ask for password, only send otp and validate answer. We have a free account with twilio for sms otp sending.
+
+Please create a followup file for this and make items checkable. Then proceed with phase 1
+```
+- Answer: Created `docs/Implementation/auth_implementation.md` with complete checklist for OTP auth. Implemented Phase 1 (UI): multi-step SignIn form (email → phone/preference → OTP), auth API client with mock responses, auth state management with session persistence, protected routes with auto-redirect, AppLayout integration. Build verified successfully. Ready for Phase 2 (BFF backend with Twilio/email/JWT).
