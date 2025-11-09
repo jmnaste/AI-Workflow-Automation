@@ -1,6 +1,8 @@
 # WebUI — AI Workflow Automation Frontend
 
-A React + TypeScript SPA served by Nginx with Traefik routing. The WebUI proxies API and Auth requests through same-origin paths (`/api`, `/auth`) to avoid CORS issues. It runs on your Traefik Docker network and is publicly accessible via Traefik's configured host.
+A React + TypeScript SPA with BFF (Backend for Frontend) pattern, served by Nginx with Traefik routing. The WebUI uses a Hostinger-inspired design with two-level navigation, subtle styling, and card-based layouts.
+
+**Design Reference**: See [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md) for complete design guidelines, color palette, and component styling.
 
 ## Image
 

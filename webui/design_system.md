@@ -1,71 +1,236 @@
-# WebUI Design System (Emulation-first)
+# WebUI Design System — Flovify
 
-Goal
-- Deliver a polished, enterprise-ready look by emulating a familiar SaaS visual language using a mature component library, not bespoke CSS.
+## Design Inspiration
 
-Baseline
-- Library: MUI (Material UI) v6
-- Mode: Light first, Dark optional (phase 2)
-- Density: Compact defaults for data-heavy views (DataGrid, tables)
-- Branding asset: `images/Flovify-logo.png` (primary logo). Keep variants for dark/light if needed.
+The Flovify WebUI design is inspired by **Hostinger's Docker Manager interface**, which exemplifies modern SaaS design principles with subtle, professional styling.
 
-Foundations (Tokens)
-- Color
-  - Primary: brand color (to be defined) + tonal scale via MUI palette
-  - Secondary: neutral accent; success/warning/error standard MUI hues
-  - Surface: subtle elevations; low-contrast backgrounds for cards/sections
-- Typography
-  - Base: system font stack or Inter
-  - Scale: 12, 14, 16, 20, 24, 32 for body/labels/headers
-  - Weights: 400/500/600 common; avoid excessive bolds
-- Spacing
-  - 8px grid (unit = 8)
-  - Compact paddings in tables/forms; generous in page headers
-- Radius & Elevation
-  - Radius: 6–8px on cards, inputs, buttons
-  - Shadows: low and medium only; avoid heavy drop shadows
+### Key Design Principles
 
-Layout
-- App Shell: left sidebar + topbar; responsive collapse below md
-- Content: max-width containers for readability; full-width grids for WRM list
-- Page templates
-  - Health: KPI cards + recent events
-  - Workflow Runs
-    - List: filters, status chips, sort, pagination; quick prefetch on hover
-    - Detail: header (id, status, timestamps, actor); tabs (timeline, inputs/outputs, logs)
-  - Metrics: charts (p95 latency, effectiveness trend, error rate), time range selector
-  - Settings: profiles, tokens, connections (n8n), theme toggle (phase 2)
+1. **Subtle Styling with Clear Contrast**
+   - Clean, minimal aesthetic without losing visual hierarchy
+   - Just enough contrast to distinguish between different UI sections
+   - Professional appearance suitable for enterprise users
 
-Components (Preferred)
-- Navigation: Drawer, AppBar, Breadcrumbs
-- Inputs: TextField, Select, Autocomplete, Switch, Date/Time pickers
-- Data: DataGrid, Table, Chip, Tooltip, Badge, Dialog
-- Feedback: Snackbar (central toast helper), Backdrop, Skeleton
-- Display: Card, Paper, Typography, Tabs, Accordion
-- Icons: Material Icons (Outlined)
+2. **Two-Level Navigation**
+   - **Level 1 (Collapsed)**: Icons only with hover tooltips
+   - **Level 2 (Expanded)**: Icons + page names
+   - Smooth transitions between states
+   - User can toggle sidebar width for more workspace
 
-Behavioral Patterns
-- Loading → Skeletons then content; avoid spinner-only views
-- Errors → Inline callouts with retry; auth errors route to login
-- Long lists → Virtualized where needed (DataGrid); enable column persistence
-- Accessibility → Focus outlines preserved; labels and aria-* added; color contrast meets WCAG AA
+3. **Header User Section**
+   - Right-aligned user controls
+   - **Not authenticated**: Sign-in button
+   - **Authenticated**: User avatar with dropdown menu
 
-Branding Hooks
-- `theme.ts`: override palette, typography, shape, components density
-- Global CSS reset: MUI CssBaseline with minor variable tweaks
-- Logo path: reference "/images/Flovify-logo.png" (repo root) or copy into WebUI public for app-relative serving
-- Favicon: generate from the logo (see webui/branding.md) and place in `images/favicon/`
+4. **Card-Based Layouts**
+   - Content organized in clean, bordered cards
+   - Minimalist style with subtle shadows
+   - Proper spacing and breathing room
 
-Theming Workflow
-1. Start with default theme; implement pages using stock MUI components.
-2. Introduce `theme.ts` with palette and typography adjustments.
-3. Add dark mode once core flows stable.
-4. Extract token documentation into Storybook (phase 2).
+5. **Blue Color Scheme**
+   - Primary color: `#5865f2` (Hostinger-style blue)
+   - Professional, trustworthy appearance
 
-Alternatives (not default)
-- DaisyUI (Tailwind plugin) for rapid theme switching if we pivot to Tailwind.
-- shadcn/ui for bespoke branding (requires Tailwind + more custom work).
+## Technical Baseline
 
-References
-- MUI Templates (Dashboard, Minimal) for layout inspiration (do not copy assets).
-- MUI X DataGrid docs for virtualization and performance patterns.
+- **Library**: MUI (Material UI) v6
+- **Mode**: Light (dark mode optional for phase 2)
+- **Density**: Compact defaults for data-heavy views
+- **Branding**: `images/Flovify-logo.png`
+
+## Color Palette
+
+### Primary Colors
+- Primary main: `#5865f2` (Hostinger-style blue)
+- Primary light: `#7289ff`
+- Primary dark: `#4752c4`
+- Primary contrast: `#ffffff`
+
+### Background Colors
+- Default: `#f5f5f7` (subtle gray)
+- Paper: `#ffffff`
+
+### Text Colors
+- Primary: `#1a1a1a`
+- Secondary: `#6e6e73`
+
+### Semantic Colors
+- Error: `#ff3b30`
+- Warning: `#ff9500`
+- Success: `#34c759`
+- Info: `#5865f2`
+
+### Dividers
+- Border: `#e8e8ed`
+
+## Typography
+
+### Font Family
+System font stack:
+```
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif
+```
+
+### Type Scale
+- H1: 2rem (32px), weight 600, letter-spacing -0.02em
+- H2: 1.75rem (28px), weight 600, letter-spacing -0.01em
+- H3-H6: 1.5rem to 1rem, weight 600
+- Body1: 0.9375rem (15px), line-height 1.6
+- Body2: 0.875rem (14px), line-height 1.6
+- Button: 0.875rem (14px), weight 500
+
+## Spacing & Layout
+
+### Grid System
+- 8px base unit (`theme.spacing(1) = 8px`)
+- MUI responsive Grid2 with xs/sm/md/lg/xl breakpoints
+- Container max-width: responsive based on breakpoint
+
+### Border Radius
+- Buttons: 6px
+- Cards: 8px
+- Drawer: 0px (full-height)
+
+### Shadows
+- Subtle only: `0 1px 2px 0 rgb(0 0 0 / 0.05)`
+- Card hover: `0 2px 8px 0 rgb(0 0 0 / 0.08)`
+
+---
+
+## Layout Structure
+
+### App Shell
+- **AppBar**: Fixed header (64px) with logo, navigation breadcrumbs, user menu
+- **Drawer**: Collapsible two-level sidebar
+  - Collapsed: 64px width (icons only with tooltips)
+  - Expanded: 240px width (icons + labels)
+  - Toggle button in header
+- **Main Content**: Full-height outlet with padding
+
+### Sidebar Navigation
+- Two-level structure:
+  - **Top-level**: Dashboard, Workflows, Settings (icon + label)
+  - **Sub-level**: Context-specific items appear based on selection
+- Icons: Material Icons (Dashboard, AccountTree, Settings, etc.)
+- Active state: Light blue background (`#eef0ff`)
+- Hover state: Slight background change
+
+### Header
+- Left: Logo (Flovify-logo.png, ~32px height)
+- Center: Page title or breadcrumbs
+- Right: User menu
+  - Not authenticated: "Sign In" button
+  - Authenticated: Avatar with dropdown (My Account, Settings, Sign Out)
+
+---
+
+## Components
+
+### Cards
+```tsx
+<Card sx={{ p: 3, border: 1, borderColor: 'divider' }}>
+  <CardContent>...</CardContent>
+</Card>
+```
+- Used for: Stats, activity panels, forms, content sections
+- Border: 1px solid divider color
+- Shadow: Subtle elevation
+- Padding: 24px (`theme.spacing(3)`)
+
+### Buttons
+- Variants:
+  - `contained`: Primary actions (blue background)
+  - `outlined`: Secondary actions (blue border)
+  - `text`: Tertiary actions (no border)
+- Border radius: 6px
+- Font weight: 500
+
+### Data Display
+- **Stats**: Icon + number + label in card
+- **Tables**: MUI Table or DataGrid for complex data
+- **Lists**: MUI List with ListItemButton for navigation
+- **Chips**: For tags, status indicators
+- **Tooltips**: For collapsed sidebar and helper text
+
+### Forms
+- TextField with standard variant
+- React Hook Form + Zod for validation
+- Error messages below fields in red
+
+### Dialogs
+- Standard MUI Dialog
+- Title: Typography variant h6
+- Actions: Right-aligned buttons (Cancel + Confirm)
+
+---
+
+## Behavioral Patterns
+
+### Loading States
+- Skeleton placeholders for content areas
+- CircularProgress for async operations
+- Inline spinners for button actions
+
+### Error States
+- Inline error text below form fields
+- Alert banners for page-level errors
+- Toast notifications for transient errors
+
+### Empty States
+- Centered icon + message + optional CTA
+- Example: "No workflows yet. Create your first workflow."
+
+### Responsive Behavior
+- Mobile/tablet: Single column, collapsed sidebar by default
+- Desktop: Multi-column layouts, expanded sidebar
+- Breakpoints: xs (mobile), sm (tablet), md+ (desktop)
+
+### User Menu
+- Avatar clickable to open dropdown
+- Menu items: My Account, Settings, Sign Out
+- Sign Out triggers auth logout flow
+
+### Sidebar Toggle
+- Toggle button in header (when authenticated)
+- Smooth transition animation (width change)
+- State persists in localStorage (optional)
+
+---
+
+## Implementation
+
+### Theme Configuration
+**File**: `ui/src/theme/theme.ts`
+
+Export `buildTheme()` function that returns MUI theme with:
+- Palette overrides (primary, background, text, error, etc.)
+- Typography overrides (fontFamily, type scale)
+- Component overrides (MuiButton, MuiCard, MuiDrawer, etc.)
+- Spacing, shape, shadows
+
+### Layout Components
+- **File**: `ui/src/shell/AppLayout.tsx` — Main shell with header, sidebar, outlet
+- **File**: `ui/src/shell/Navigation.tsx` — Sidebar navigation with tooltips
+
+### Page Components
+- **File**: `ui/src/pages/Dashboard.tsx` — Example of card-based stat layout
+- Other pages follow same card-based pattern
+
+### Routing
+- React Router 7 with protected routes
+- Navigation state managed via router
+- Outlet renders current page
+
+### Branding Assets
+- Logo: `images/Flovify-logo.png` (repo root or copy to webui/public)
+- Favicon: Generate from logo and place in `images/favicon/`
+
+---
+
+## References
+
+- **Design Inspiration**: [Hostinger Docker Manager UI](https://www.hostinger.com/)
+- **Component Library**: [MUI v6 Documentation](https://mui.com/material-ui/)
+- **Theme Customization**: [MUI Theming Guide](https://mui.com/material-ui/customization/theming/)
+- **Default Theme**: [MUI Default Theme Explorer](https://mui.com/material-ui/customization/default-theme/)
+- **Icons**: [Material Icons](https://mui.com/material-ui/material-icons/)

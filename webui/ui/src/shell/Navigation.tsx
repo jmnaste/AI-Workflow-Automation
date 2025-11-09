@@ -6,6 +6,7 @@ import {
   ListItemText,
   Toolbar,
   Divider,
+  Tooltip,
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -18,7 +19,11 @@ const menuItems = [
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
 ];
 
-export default function Navigation() {
+interface NavigationProps {
+  expanded: boolean;
+}
+
+export default function Navigation({ expanded }: NavigationProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -26,36 +31,44 @@ export default function Navigation() {
     <div>
       <Toolbar />
       <Divider />
-      <List>
-        {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
+      <List sx={{ pt: 1 }}>
+        {menuItems.map((item) => {
+          const isSelected = location.pathname === item.path;
+          const button = (
             <ListItemButton
-              selected={location.pathname === item.path}
+              selected={isSelected}
               onClick={() => navigate(item.path)}
               sx={{
-                '&.Mui-selected': {
-                  backgroundColor: 'primary.main',
-                  color: 'primary.contrastText',
-                  '& .MuiListItemIcon-root': {
-                    color: 'primary.contrastText',
-                  },
-                  '&:hover': {
-                    backgroundColor: 'primary.dark',
-                  },
-                },
+                minHeight: 44,
+                justifyContent: expanded ? 'initial' : 'center',
+                px: expanded ? 2 : 1.5,
               }}
             >
               <ListItemIcon
                 sx={{
-                  color: location.pathname === item.path ? 'inherit' : 'text.secondary',
+                  minWidth: 0,
+                  mr: expanded ? 2 : 'auto',
+                  justifyContent: 'center',
                 }}
               >
                 {item.icon}
               </ListItemIcon>
-              <ListItemText primary={item.text} />
+              {expanded && <ListItemText primary={item.text} />}
             </ListItemButton>
-          </ListItem>
-        ))}
+          );
+
+          return (
+            <ListItem key={item.text} disablePadding sx={{ display: 'block' }}>
+              {expanded ? (
+                button
+              ) : (
+                <Tooltip title={item.text} placement="right">
+                  {button}
+                </Tooltip>
+              )}
+            </ListItem>
+          );
+        })}
       </List>
     </div>
   );
