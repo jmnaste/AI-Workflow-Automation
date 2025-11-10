@@ -23,15 +23,18 @@ TRAEFIK_CERT_RESOLVER=letsencrypt
 NODE_ENV=production
 API_BASE_URL=http://api:8000
 AUTH_BASE_URL=http://auth:8000
-JWT_SECRET=placeholder-until-auth-service-implemented
+JWT_SECRET=<generate-with-openssl-rand-base64-32>
 JWT_COOKIE_NAME=flovify_token
 ```
 
-**Note:** `JWT_SECRET` is not currently used since authentication is not yet implemented. Use a placeholder value for now. When you implement the Auth service, generate a secure secret:
+**Important**: The BFF only needs JWT configuration. All authentication configuration (OTP, SMS, Email, Database) is managed by the Auth Service.
+
+**Generate JWT_SECRET** (use same value in Auth Service):
 ```bash
 openssl rand -base64 32
 ```
-Then use the same secret in both Auth and WebUI services.
+
+**Auth Service Configuration**: Deploy the Auth Service separately with its own environment variables. See [auth/README.md](../auth/README.md) and [auth/AUTH_CONFIGURATION.md](../auth/AUTH_CONFIGURATION.md).
 
 4) Deploy. Traefik will route `https://console.flovify.ca` to the WebUI container on port 80.
 
@@ -46,15 +49,20 @@ Then use the same secret in both Auth and WebUI services.
 | `NODE_ENV` | Runtime environment indicator | `production` |
 | `API_BASE_URL` | Internal Docker DNS URL for API service (used by BFF) | `http://api:8000` |
 | `AUTH_BASE_URL` | Internal Docker DNS URL for Auth service (used by BFF) | `http://auth:8000` |
-| `JWT_SECRET` | Secret key for JWT validation (must match Auth service) | `your-secret-key-change-in-production` |
-| `JWT_COOKIE_NAME` | Name of the JWT cookie (must match Auth service) | `flovify_token` |
+| `JWT_SECRET` | Secret key for validating JWT tokens (must match Auth Service) | Generate with `openssl rand -base64 32` |
+| `JWT_COOKIE_NAME` | Name of the JWT cookie | `flovify_token` |
+
+**Configuration Guide**: See [BFF_CONFIGURATION.md](./BFF_CONFIGURATION.md) for BFF proxy configuration.
+
+**Auth Service Configuration**: OTP, SMS, Email, and database configuration is managed by the Auth Service. See [auth/AUTH_CONFIGURATION.md](../auth/AUTH_CONFIGURATION.md) for details.
 
 **Important notes:**
 
 - The SPA is built at CI time and served statically by Nginx. Environment variables are available to the BFF (Express server) at runtime.
-- The BFF uses `API_BASE_URL` and `AUTH_BASE_URL` to communicate with backend services via Docker DNS (private network).
+- The BFF is a **thin proxy layer** between UI and backend services. It forwards requests to Auth Service and API Service via Docker DNS (private network).
+- **No database access**: BFF does not connect to PostgreSQL. Auth and API services own their respective data tables.
 - `JWT_SECRET` must match the secret configured in the Auth service for JWT validation.
-- The frontend makes API calls to `/bff/*` endpoints only; the BFF mediates all backend communication.
+- The frontend makes API calls to `/bff/*` endpoints only; the BFF routes to appropriate services.
 
 ### DNS Configuration
 

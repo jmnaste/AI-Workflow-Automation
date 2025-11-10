@@ -74,3 +74,12 @@ Yes we start with simple jwt auth. Also, user identifies itself with email and t
 Please create a followup file for this and make items checkable. Then proceed with phase 1
 ```
 - Answer: Created `docs/Implementation/auth_implementation.md` with complete checklist for OTP auth. Implemented Phase 1 (UI): multi-step SignIn form (email → phone/preference → OTP), auth API client with mock responses, auth state management with session persistence, protected routes with auto-redirect, AppLayout integration. Build verified successfully. Ready for Phase 2 (BFF backend with Twilio/email/JWT).
+
+---
+
+## 2025-11-09 19:00 — Auth Service implementation and BFF simplification complete
+- Prompt:
+```
+I want to commit and update prompt log
+```
+- Answer: Completed full architecture refactoring. Auth Service (Python/FastAPI) now owns: OTP authentication (bcrypt hashing, rate limiting, expiration), user management (PostgreSQL CRUD), JWT generation (7-day expiry), SMS delivery (Twilio), Email delivery (SMTP with branded HTML template). BFF simplified to thin proxy only - no business logic, no database access, JWT cookie management only. Created 7 service modules in auth/app/services/ (database, users, otp, jwt, sms, email), 4 FastAPI endpoints, PostgreSQL schema (auth.users, auth.otp_storage, auth.rate_limit). Deleted 5 BFF service files, removed 6 dependencies. Updated documentation: auth/README.md, webui/README.md, auth/AUTH_CONFIGURATION.md (350+ lines), auth_implementation.md, Platform_architecture.md, BFF_CONFIGURATION.md. All environment variables properly separated by service ownership. Ready for deployment and testing.

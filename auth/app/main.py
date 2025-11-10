@@ -1,12 +1,65 @@
 import os
-from fastapi import FastAPI, HTTPException
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException, Header
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional
+import jwt as pyjwt
 
 try:
     import psycopg
 except Exception:  # pragma: no cover
     psycopg = None  # Optional import; endpoint will report if missing
 
-app = FastAPI(title="Auth Service", version="0.1.0")
+from .services.database import init_database
+from .services import users, otp, jwt, sms
+from .services import email as email_service
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize database on startup."""
+    try:
+        init_database()
+        print("Database initialized successfully")
+    except Exception as e:
+        print(f"Database initialization failed: {e}")
+    yield
+
+
+app = FastAPI(title="Auth Service", version="0.1.0", lifespan=lifespan)
+
+
+# Request/Response Models
+class RequestOtpRequest(BaseModel):
+    email: EmailStr
+    phone: Optional[str] = None
+    preference: Optional[str] = Field(None, pattern="^(sms|email)$")
+
+
+class RequestOtpResponse(BaseModel):
+    success: bool
+    message: str
+    isNewUser: bool
+
+
+class VerifyOtpRequest(BaseModel):
+    email: EmailStr
+    otp: str = Field(..., min_length=6, max_length=6, pattern="^[0-9]{6}$")
+
+
+class UserProfile(BaseModel):
+    id: str
+    email: str
+    phone: Optional[str]
+    otpPreference: Optional[str]
+    createdAt: Optional[str]
+    lastLoginAt: Optional[str]
+
+
+class VerifyOtpResponse(BaseModel):
+    success: bool
+    token: str
+    user: UserProfile
 
 
 @app.get("/auth/health")
@@ -117,3 +170,165 @@ def versions(n: int = 5):
         ]
     except Exception as e:  # pragma: no cover
         raise HTTPException(status_code=500, detail=f"Version lookup failed: {e}")
+
+
+# OTP Authentication Endpoints
+
+@app.post("/auth/request-otp", response_model=RequestOtpResponse)
+def request_otp(request: RequestOtpRequest):
+    """Request OTP for email authentication.
+    
+    For new users, phone and preference are required.
+    For existing users, saved preference is used.
+    """
+    email = request.email.lower()
+    
+    # Check rate limiting
+    if otp.check_rate_limit(email):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many OTP requests. Please try again later."
+        )
+    
+    # Check if user exists
+    user = users.find_user_by_email(email)
+    is_new_user = user is None
+    
+    if is_new_user:
+        # New user - require phone and preference
+        if not request.phone or not request.preference:
+            raise HTTPException(
+                status_code=400,
+                detail="Phone number and OTP preference required for new users"
+            )
+        
+        # Create user
+        try:
+            user = users.create_user(email, request.phone, request.preference)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    
+    # Generate and store OTP
+    otp_code = otp.generate_otp()
+    otp.store_otp(email, otp_code)
+    
+    # Send OTP based on preference
+    preference = user.otp_preference
+    
+    try:
+        if preference == "sms":
+            if not sms.is_twilio_configured():
+                raise HTTPException(
+                    status_code=500,
+                    detail="SMS delivery not configured"
+                )
+            if not sms.send_otp_sms(user.phone, otp_code):
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to send SMS"
+                )
+        else:  # email
+            if not email_service.is_smtp_configured():
+                raise HTTPException(
+                    status_code=500,
+                    detail="Email delivery not configured"
+                )
+            if not email_service.send_otp_email(email, otp_code):
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to send email"
+                )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to deliver OTP: {str(e)}"
+        )
+    
+    return RequestOtpResponse(
+        success=True,
+        message=f"OTP sent to your {preference}",
+        isNewUser=is_new_user
+    )
+
+
+@app.post("/auth/verify-otp", response_model=VerifyOtpResponse)
+def verify_otp(request: VerifyOtpRequest):
+    """Verify OTP and issue JWT token."""
+    email_addr = request.email.lower()
+    
+    # Validate OTP
+    success, error_msg = otp.validate_otp(email_addr, request.otp)
+    
+    if not success:
+        raise HTTPException(status_code=400, detail=error_msg)
+    
+    # Get user
+    user = users.find_user_by_email(email_addr)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update last login
+    users.update_last_login(email_addr)
+    
+    # Generate JWT
+    token = jwt.generate_jwt(str(user.id), user.email)
+    
+    # Return token and user profile
+    user_dict = user.to_dict()
+    return VerifyOtpResponse(
+        success=True,
+        token=token,
+        user=UserProfile(
+            id=user_dict["id"],
+            email=user_dict["email"],
+            phone=user_dict["phone"],
+            otpPreference=user_dict["otp_preference"],
+            createdAt=user_dict["created_at"],
+            lastLoginAt=user_dict["last_login_at"]
+        )
+    )
+
+
+@app.get("/auth/me", response_model=UserProfile)
+def get_current_user(authorization: Optional[str] = Header(None)):
+    """Get current user profile from JWT token."""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authorization header required")
+    
+    # Extract token from "Bearer <token>"
+    parts = authorization.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Invalid authorization header format")
+    
+    token = parts[1]
+    
+    try:
+        payload = jwt.verify_jwt(token)
+        email_addr = payload.get("email")
+        
+        if not email_addr:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        
+        user = users.find_user_by_email(email_addr)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user_dict = user.to_dict()
+        return UserProfile(
+            id=user_dict["id"],
+            email=user_dict["email"],
+            phone=user_dict["phone"],
+            otpPreference=user_dict["otp_preference"],
+            createdAt=user_dict["created_at"],
+            lastLoginAt=user_dict["last_login_at"]
+        )
+    except pyjwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except pyjwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+@app.post("/auth/logout")
+def logout():
+    """Logout endpoint (client should clear cookie)."""
+    return {"success": True, "message": "Logged out successfully"}

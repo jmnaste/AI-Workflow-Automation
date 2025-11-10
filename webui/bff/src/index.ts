@@ -4,6 +4,7 @@ import cors from 'cors';
 import pino from 'pino';
 import pinoHttp from 'pino-http';
 import healthRouter from './routes/health.js';
+import authRouter from './routes/auth.js';
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -34,6 +35,7 @@ app.use(cors({
 
 // Routes
 app.use('/bff/health', healthRouter);
+app.use('/bff/auth', authRouter);
 
 // Error handler
 app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -65,6 +67,20 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (reason) => {
   logger.error({ reason }, 'Unhandled rejection');
   process.exit(1);
+});
+
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  logger.info('SIGINT received, shutting down gracefully');
+  server.close(() => {
+    process.exit(0);
+  });
 });
 
 export default app;

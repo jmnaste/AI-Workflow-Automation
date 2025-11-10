@@ -15,11 +15,69 @@ A minimal FastAPI-based auth service, mirroring the API project structure. It ru
 
 ```
 TRAEFIK_NETWORK=root_default
-# Optional if using Postgres: DSN on the private Docker network
-DATABASE_URL=postgresql://app_system:YOUR_PASSWORD@postgres:5432/app_db
+# Database (required)
+DATABASE_URL=postgresql://flovify:YOUR_PASSWORD@postgres:5432/flovify
+# JWT (required - generate with: openssl rand -base64 32)
+JWT_SECRET=your-secure-secret-at-least-32-chars
+# OTP Configuration (optional - defaults shown)
+OTP_EXPIRY_MINUTES=5
+OTP_MAX_ATTEMPTS=3
+RATE_LIMIT_WINDOW_MINUTES=15
+RATE_LIMIT_MAX_REQUESTS=3
+# Twilio SMS (optional - required if users choose SMS)
+TWILIO_ACCOUNT_SID=your-twilio-sid
+TWILIO_AUTH_TOKEN=your-twilio-token
+TWILIO_PHONE_NUMBER=+1234567890
+# SMTP Email (optional - required if users choose email)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@domain.com
+SMTP_PASS=your-app-password
+SMTP_FROM=noreply@flovify.ca
 ```
 
+**Note**: Either Twilio OR SMTP must be configured for OTP delivery. Users choose their preferred method during sign-in.
+
 4) Deploy. No ports are published and no Traefik router is created; the service runs privately.
+
+## Environment Variables
+
+### Required
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `TRAEFIK_NETWORK` | Traefik Docker network name | `root_default` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@postgres:5432/dbname` |
+| `JWT_SECRET` | Secret for JWT signing (min 32 chars) | Generate with `openssl rand -base64 32` |
+
+### OTP Configuration (Optional - defaults provided)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OTP_EXPIRY_MINUTES` | `5` | OTP code expiration time |
+| `OTP_MAX_ATTEMPTS` | `3` | Max validation attempts per OTP |
+| `RATE_LIMIT_WINDOW_MINUTES` | `15` | Rate limiting time window |
+| `RATE_LIMIT_MAX_REQUESTS` | `3` | Max OTP requests per window |
+
+### Delivery Methods (At least one required)
+
+**Twilio SMS:**
+| Variable | Description |
+|----------|-------------|
+| `TWILIO_ACCOUNT_SID` | Twilio account SID |
+| `TWILIO_AUTH_TOKEN` | Twilio auth token |
+| `TWILIO_PHONE_NUMBER` | Phone number with country code |
+
+**SMTP Email:**
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SMTP_HOST` | - | SMTP server hostname |
+| `SMTP_PORT` | `587` | SMTP port (587=TLS, 465=SSL) |
+| `SMTP_USER` | - | SMTP username |
+| `SMTP_PASS` | - | SMTP password |
+| `SMTP_FROM` | `noreply@flovify.ca` | From email address |
+
+**See [AUTH_CONFIGURATION.md](./AUTH_CONFIGURATION.md) for detailed configuration examples.**
 
 ### Configure the database DSN (DATABASE_URL)
 
