@@ -24,7 +24,8 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { Outlet, useNavigate } from 'react-router-dom';
 import Navigation from './Navigation';
-import { getSession, signOut } from '../lib/auth.js';
+import { useAuth } from '../contexts/AuthContext';
+import { signOut as apiSignOut } from '../lib/api/auth.js';
 
 const DRAWER_WIDTH_EXPANDED = 240;
 const DRAWER_WIDTH_COLLAPSED = 64;
@@ -32,14 +33,11 @@ const DRAWER_WIDTH_COLLAPSED = 64;
 export default function AppLayout() {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { user, isAuthenticated, signOut } = useAuth();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [drawerExpanded, setDrawerExpanded] = useState(true);
   const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
-  
-  const session = getSession();
-  const isAuthenticated = session.isAuthenticated;
-  const user = session.user;
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -59,8 +57,13 @@ export default function AppLayout() {
 
   const handleSignOut = async () => {
     handleUserMenuClose();
-    await signOut();
-    navigate('/sign-in');
+    try {
+      await apiSignOut(); // Call API to clear cookie
+    } catch (err) {
+      console.error('Sign out API error:', err);
+    }
+    signOut(); // Clear local auth state
+    navigate('/sign-in'); // Redirect to sign-in
   };
 
   const drawerWidth = drawerExpanded ? DRAWER_WIDTH_EXPANDED : DRAWER_WIDTH_COLLAPSED;

@@ -16,6 +16,15 @@ Entries are appended in reverse chronological order.
 
 ---
 
+## 2025-11-10 16:40 — React Context for reactive auth state
+- Prompt:
+```
+We need to clarify something: navigating to dashboard without authentication works, maybe it should not. Also maybe the only available page when not logged in is sign in. Also, upon sign out ui should return to login page. Does that makes sense? Except for sign in all pages require authentication?
+```
+- Answer: Implemented React Context (AuthContext) to replace plain JavaScript auth state, making authentication reactive and properly protecting all routes. Only /sign-in is public; all other routes redirect to /sign-in when not authenticated. Sign-out now clears auth state and redirects to /sign-in. Removed page reload hack after OTP verification - navigation now works cleanly with context-driven re-renders.
+
+---
+
 ## 2025-10-31 — Hostinger deployment help
 - Prompt:
 ```

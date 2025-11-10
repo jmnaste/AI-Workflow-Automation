@@ -20,7 +20,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { requestOtp, verifyOtp } from '../lib/api/auth.js';
-import { setUser } from '../lib/auth.js';
+import { useAuth } from '../contexts/AuthContext';
 
 // Validation schemas
 const emailSchema = z.object({
@@ -44,6 +44,7 @@ type Step = 'email' | 'phone' | 'otp';
 
 export default function SignIn() {
   const navigate = useNavigate();
+  const { setUser } = useAuth();
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
   const [isNewUser, setIsNewUser] = useState(false); // Will be used when API integration is complete
@@ -106,11 +107,11 @@ export default function SignIn() {
     try {
       const response = await verifyOtp(email, data.otp);
       
-      // Store user in auth state
+      // Store user in auth state (triggers re-render)
       setUser(response.user);
       
-      // Force page reload to re-initialize auth state and redirect to dashboard
-      window.location.href = '/dashboard';
+      // Navigate to dashboard (now that isAuthenticated is true)
+      navigate('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid or expired OTP');
     } finally {

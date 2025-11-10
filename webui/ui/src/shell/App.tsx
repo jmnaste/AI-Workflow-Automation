@@ -1,70 +1,71 @@
-import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, CssBaseline, createTheme, Box, CircularProgress } from '@mui/material';
 import { buildTheme } from '../theme/theme';
+import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import AppLayout from './AppLayout';
 import Dashboard from '../pages/Dashboard';
 import Workflows from '../pages/Workflows';
 import Settings from '../pages/Settings';
 import SignIn from '../pages/SignIn';
-import { initAuth, isAuthenticated as checkAuth } from '../lib/auth.js';
 
 const theme = createTheme(buildTheme({ primary: '#1E6BFF' }));
 
-export default function App() {
-  const [authInitialized, setAuthInitialized] = useState(false);
+function AppRoutes() {
+  const { isAuthenticated, isLoading } = useAuth();
 
-  useEffect(() => {
-    initAuth().finally(() => setAuthInitialized(true));
-  }, []);
-
-  if (!authInitialized) {
+  if (isLoading) {
     return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            minHeight: '100vh',
-          }}
-        >
-          <CircularProgress />
-        </Box>
-      </ThemeProvider>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+        }}
+      >
+        <CircularProgress />
+      </Box>
     );
   }
 
-  const isAuthenticated = checkAuth();
+  return (
+    <Routes>
+      {/* Public routes */}
+      <Route 
+        path="/sign-in" 
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <SignIn />} 
+      />
 
+      {/* Protected routes */}
+      <Route
+        path="/"
+        element={
+          isAuthenticated ? <AppLayout /> : <Navigate to="/sign-in" replace />
+        }
+      >
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="workflows" element={<Workflows />} />
+        <Route path="settings" element={<Settings />} />
+      </Route>
+
+      {/* Catch all - redirect to dashboard if authenticated, sign-in otherwise */}
+      <Route 
+        path="*" 
+        element={<Navigate to={isAuthenticated ? "/dashboard" : "/sign-in"} replace />} 
+      />
+    </Routes>
+  );
+}
+
+export default function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <BrowserRouter>
-        <Routes>
-          {/* Public routes */}
-          <Route 
-            path="/sign-in" 
-            element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <SignIn />} 
-          />
-
-          {/* Protected routes */}
-          <Route
-            path="/"
-            element={
-              isAuthenticated ? <AppLayout /> : <Navigate to="/sign-in" replace />
-            }
-          >
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="workflows" element={<Workflows />} />
-            <Route path="settings" element={<Settings />} />
-          </Route>
-
-          {/* Catch all */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>
   );
