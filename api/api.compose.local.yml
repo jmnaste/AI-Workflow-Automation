@@ -1,0 +1,28 @@
+# API service (local testing)
+# - Builds from local source instead of pulling GHCR image
+# - Attaches to local Traefik network for internal DNS
+# - Private-only (traefik.enable=false for local testing)
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK}
+
+services:
+  api:
+    build: .
+    container_name: api
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - API_MIN_AUTH_VERSION=${API_MIN_AUTH_VERSION:-}
+      - SERVICE_SEMVER=${SERVICE_SEMVER:-0.1.0}
+    ports:
+      - "8001:8000"
+    labels:
+      - traefik.enable=false
+    networks:
+      traefik:
+        aliases:
+          - api

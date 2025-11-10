@@ -1,0 +1,44 @@
+# Auth service (local testing)
+# - Builds from local source instead of pulling GHCR image
+# - Attaches to local Traefik network for internal DNS
+# - Private-only (traefik.enable=false for local testing)
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK}
+
+services:
+  auth:
+    build: .
+    container_name: auth
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - SERVICE_SEMVER=${SERVICE_SEMVER:-0.1.0}
+      # JWT Configuration
+      - JWT_SECRET=${JWT_SECRET}
+      # OTP Configuration
+      - OTP_EXPIRY_MINUTES=${OTP_EXPIRY_MINUTES:-5}
+      - OTP_MAX_ATTEMPTS=${OTP_MAX_ATTEMPTS:-3}
+      - RATE_LIMIT_WINDOW_MINUTES=${RATE_LIMIT_WINDOW_MINUTES:-15}
+      - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS:-3}
+      # Twilio SMS (optional - required if users choose SMS)
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER:-}
+      # SMTP Email (optional - required if users choose email)
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-noreply@flovify.ca}
+    ports:
+      - "8000:8000"
+    labels:
+      - traefik.enable=false
+    networks:
+      traefik:
+        aliases:
+          - auth

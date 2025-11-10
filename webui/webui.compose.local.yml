@@ -1,0 +1,33 @@
+# WebUI (local testing)
+# - Builds from local source instead of pulling GHCR image
+# - Attaches to local Traefik network for internal DNS
+# - Exposed on localhost:80 (Nginx serves UI and proxies /bff/* to BFF)
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK}
+
+services:
+  webui:
+    build: .
+    container_name: webui
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - UI_HOST=${UI_HOST:-localhost}
+      - TRAEFIK_NETWORK=${TRAEFIK_NETWORK}
+      # BFF backend service URLs (Docker DNS names)
+      - API_BASE_URL=${API_BASE_URL:-http://api:8000}
+      - AUTH_BASE_URL=${AUTH_BASE_URL:-http://auth:8000}
+      # JWT configuration (must match Auth Service secret)
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_COOKIE_NAME=${JWT_COOKIE_NAME:-flovify_token}
+    ports:
+      - "80:80"
+    labels:
+      - traefik.enable=false
+    networks:
+      traefik:
+        aliases:
+          - webui

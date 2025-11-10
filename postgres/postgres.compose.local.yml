@@ -1,0 +1,37 @@
+# PostgreSQL database project (local testing)
+# - Uses official Postgres image
+# - Attached to local Traefik network for internal DNS
+# - Persistent named volume for data
+# - Exposed on localhost:5432 for local access
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata_local:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      - traefik.enable=false
+    networks:
+      traefik: {}
+    restart: unless-stopped
+
+volumes:
+  pgdata_local:
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK}

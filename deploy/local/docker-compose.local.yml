@@ -1,0 +1,42 @@
+# Local Testing Stack - Docker Compose
+# Orchestrates all services for local development and testing
+# 
+# Usage:
+#   1. Copy .env.local.template to .env.local and fill in your values
+#   2. Ensure Traefik network exists: docker network create root_default
+#   3. Start stack: docker-compose -f docker-compose.local.yml up --build
+#   4. Access UI: http://localhost
+#   5. View logs: docker-compose -f docker-compose.local.yml logs -f <service>
+#   6. Rebuild single service: docker-compose -f docker-compose.local.yml up --build <service>
+
+version: '3.8'
+
+services:
+  postgres:
+    extends:
+      file: ../../postgres/postgres.compose.local.yml
+      service: postgres
+
+  auth:
+    extends:
+      file: ../../auth/auth.compose.local.yml
+      service: auth
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    extends:
+      file: ../../api/api.compose.local.yml
+      service: api
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  webui:
+    extends:
+      file: ../../webui/webui.compose.local.yml
+      service: webui
+    depends_on:
+      - auth
+      - api
