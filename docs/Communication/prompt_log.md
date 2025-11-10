@@ -83,3 +83,12 @@ Please create a followup file for this and make items checkable. Then proceed wi
 I want to commit and update prompt log
 ```
 - Answer: Completed full architecture refactoring. Auth Service (Python/FastAPI) now owns: OTP authentication (bcrypt hashing, rate limiting, expiration), user management (PostgreSQL CRUD), JWT generation (7-day expiry), SMS delivery (Twilio), Email delivery (SMTP with branded HTML template). BFF simplified to thin proxy only - no business logic, no database access, JWT cookie management only. Created 7 service modules in auth/app/services/ (database, users, otp, jwt, sms, email), 4 FastAPI endpoints, PostgreSQL schema (auth.users, auth.otp_storage, auth.rate_limit). Deleted 5 BFF service files, removed 6 dependencies. Updated documentation: auth/README.md, webui/README.md, auth/AUTH_CONFIGURATION.md (350+ lines), auth_implementation.md, Platform_architecture.md, BFF_CONFIGURATION.md. All environment variables properly separated by service ownership. Ready for deployment and testing.
+
+---
+
+## 2025-11-09 19:30 — Local testing infrastructure with VPS parity
+- Prompt:
+```
+I want to commit and update prompt log
+```
+- Answer: Created complete local testing infrastructure with VPS parity. Each service now has dual compose files: `<service>.compose.yml` (VPS with GHCR images) and `<service>.compose.local.yml` (local with source builds). Created `deploy/local/` orchestration: docker-compose.local.yml (orchestrates postgres, auth, api, webui), .env.local.template (all environment variables), README.md (complete testing guide with commands). Updated deploy/ structure documentation: deploy/README.md clarifies global infrastructure only, deploy/hostinger/README.md warns historical files only. All services exposed on localhost with distinct ports (postgres:5432, auth:8000, api:8001, webui:80) for easy debugging. Single .env.local file for all variables (Hostinger-style). Fast iteration: rebuild individual services. Complete testing workflow documented with curl examples for auth flow.
