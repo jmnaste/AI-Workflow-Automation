@@ -62,6 +62,18 @@ class VerifyOtpResponse(BaseModel):
     user: UserProfile
 
 
+class CreateUserRequest(BaseModel):
+    email: EmailStr
+    phone: str = Field(..., pattern=r"^\+?[1-9]\d{1,14}$")
+    preference: str = Field(..., pattern="^(sms|email)$")
+
+
+class CreateUserResponse(BaseModel):
+    success: bool
+    message: str
+    user: UserProfile
+
+
 @app.get("/auth/health")
 def health():
     """Minimal liveness endpoint for internal checks."""
@@ -178,8 +190,8 @@ def versions(n: int = 5):
 def request_otp(request: RequestOtpRequest):
     """Request OTP for email authentication.
     
-    For new users, phone and preference are required.
-    For existing users, saved preference is used.
+    Only existing users (created by admin) can request OTP.
+    Self-registration is disabled.
     """
     email = request.email.lower()
     
@@ -192,21 +204,13 @@ def request_otp(request: RequestOtpRequest):
     
     # Check if user exists
     user = users.find_user_by_email(email)
-    is_new_user = user is None
     
-    if is_new_user:
-        # New user - require phone and preference
-        if not request.phone or not request.preference:
-            raise HTTPException(
-                status_code=400,
-                detail="Phone number and OTP preference required for new users"
-            )
-        
-        # Create user
-        try:
-            user = users.create_user(email, request.phone, request.preference)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+    if user is None:
+        # User not found - deny access (no self-registration)
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied. Please contact an administrator to create your account."
+        )
     
     # Generate and store OTP
     otp_code = otp.generate_otp()
@@ -247,7 +251,7 @@ def request_otp(request: RequestOtpRequest):
     return RequestOtpResponse(
         success=True,
         message=f"OTP sent to your {preference}",
-        isNewUser=is_new_user
+        isNewUser=False  # All users are pre-created by admin
     )
 
 
@@ -326,6 +330,62 @@ def get_current_user(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Token has expired")
     except pyjwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+# Admin Endpoints
+
+@app.post("/auth/admin/create-user", response_model=CreateUserResponse)
+def create_user_admin(
+    request: CreateUserRequest,
+    x_admin_token: Optional[str] = Header(None)
+):
+    """Admin endpoint to create new users.
+    
+    Requires X-Admin-Token header matching ADMIN_TOKEN environment variable.
+    """
+    # Verify admin token
+    admin_token = os.environ.get("ADMIN_TOKEN")
+    if not admin_token:
+        raise HTTPException(
+            status_code=500,
+            detail="Admin functionality not configured"
+        )
+    
+    if not x_admin_token or x_admin_token != admin_token:
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid or missing admin token"
+        )
+    
+    email = request.email.lower()
+    
+    # Check if user already exists
+    existing_user = users.find_user_by_email(email)
+    if existing_user:
+        raise HTTPException(
+            status_code=409,
+            detail=f"User with email {email} already exists"
+        )
+    
+    # Create user
+    try:
+        user = users.create_user(email, request.phone, request.preference)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    user_dict = user.to_dict()
+    return CreateUserResponse(
+        success=True,
+        message=f"User {email} created successfully",
+        user=UserProfile(
+            id=user_dict["id"],
+            email=user_dict["email"],
+            phone=user_dict["phone"],
+            otpPreference=user_dict["otp_preference"],
+            createdAt=user_dict["created_at"],
+            lastLoginAt=user_dict["last_login_at"]
+        )
+    )
 
 
 @app.post("/auth/logout")

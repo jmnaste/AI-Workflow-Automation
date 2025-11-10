@@ -17,6 +17,8 @@ services:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - SERVICE_SEMVER=${SERVICE_SEMVER:-0.1.0}
+      # Admin Configuration
+      - ADMIN_TOKEN=${ADMIN_TOKEN}
       # JWT Configuration
       - JWT_SECRET=${JWT_SECRET}
       # OTP Configuration

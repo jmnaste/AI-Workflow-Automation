@@ -1,7 +1,7 @@
 """OTP generation, storage, and validation service."""
 import os
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import bcrypt
 from .database import get_db_connection
 
@@ -54,7 +54,7 @@ def check_rate_limit(email: str) -> bool:
             )
             row = cur.fetchone()
             
-            now = datetime.now()
+            now = datetime.now(timezone.utc)
             window_start = now
             request_count = 0
             
@@ -91,7 +91,7 @@ def store_otp(email: str, otp: str) -> None:
     """Store OTP hash with expiry."""
     config = get_otp_config()
     otp_hash = hash_otp(otp)
-    expires_at = datetime.now() + timedelta(minutes=config["expiry_minutes"])
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=config["expiry_minutes"])
     
     with get_db_connection() as conn:
         with conn.cursor() as cur:
@@ -127,7 +127,7 @@ def validate_otp(email: str, otp: str) -> tuple[bool, str]:
                 return False, "No OTP found for this email"
             
             # Check expiry
-            if datetime.now() > row["expires_at"]:
+            if datetime.now(timezone.utc) > row["expires_at"]:
                 # Clean up expired OTP
                 cur.execute("DELETE FROM auth.otp_storage WHERE email = %s", (email.lower(),))
                 conn.commit()

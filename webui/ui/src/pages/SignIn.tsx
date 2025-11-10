@@ -109,8 +109,8 @@ export default function SignIn() {
       // Store user in auth state
       setUser(response.user);
       
-      // On success, navigate to dashboard
-      navigate('/dashboard');
+      // Force page reload to re-initialize auth state and redirect to dashboard
+      window.location.href = '/dashboard';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid or expired OTP');
     } finally {
