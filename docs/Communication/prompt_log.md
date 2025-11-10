@@ -101,3 +101,12 @@ I want to commit and update prompt log
 I want to commit and update prompt log
 ```
 - Answer: Created complete local testing infrastructure with VPS parity. Each service now has dual compose files: `<service>.compose.yml` (VPS with GHCR images) and `<service>.compose.local.yml` (local with source builds). Created `deploy/local/` orchestration: docker-compose.local.yml (orchestrates postgres, auth, api, webui), .env.local.template (all environment variables), README.md (complete testing guide with commands). Updated deploy/ structure documentation: deploy/README.md clarifies global infrastructure only, deploy/hostinger/README.md warns historical files only. All services exposed on localhost with distinct ports (postgres:5432, auth:8000, api:8001, webui:80) for easy debugging. Single .env.local file for all variables (Hostinger-style). Fast iteration: rebuild individual services. Complete testing workflow documented with curl examples for auth flow.
+
+---
+
+## 2025-11-10 20:30 — Email-primary authentication with role support and SQL migrations
+- Prompt:
+```
+In auth and api we need to run all the migrations (contained in the migrations subfolder). So we should reset database and run migrations. Also, for vps parity I will change postgres_db to app_db and postgres_user to app_root
+```
+- Answer: Implemented complete SQL migration system with schema restructuring. Created migration runners for auth and API services using FastAPI lifespan context (sequential SQL file execution). Created migration 0004_restructure_for_email_primary.sql to align schema with original documented design: email is now NOT NULL primary identifier, phone is nullable/optional, added otp_preference column (sms/email). Updated all auth service code for email-based flow: users.py (email-primary queries with dict row handling), otp.py (user_id-based challenges, email rate limiting), jwt.py (added role to JWT payload: userId/email/role), main.py (email-based endpoints with new user registration support). Updated database credentials for VPS parity: POSTGRES_DB=app_db, POSTGRES_USER=app_root. Migration 0004 is idempotent and safe to re-run. Tested end-to-end with real SMS OTP delivery: admin user creation, OTP request/verify, JWT generation with proper claims, /auth/me endpoint all working. Users now have role field (user/admin/super), is_active flag, and verified_at timestamp.

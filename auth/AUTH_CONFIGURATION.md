@@ -16,12 +16,18 @@ This document explains the configuration for the Auth Service (OTP-based authent
 |----------|----------|---------|-------------|
 | `JWT_SECRET` | **Yes** | - | Secret key for signing JWT tokens (min 32 chars, use `openssl rand -base64 32`) |
 
+### Admin Configuration (Required for admin endpoints)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `ADMIN_TOKEN` | Yes (for admin endpoints) | - | Secret token for admin user creation (use `openssl rand -hex 32`) |
+
 ### OTP Configuration
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `OTP_EXPIRY_MINUTES` | No | `5` | OTP expiration time in minutes |
-| `OTP_MAX_ATTEMPTS` | No | `3` | Maximum validation attempts per OTP |
+| `OTP_MAX_ATTEMPTS` | No | `8` | Maximum validation attempts per OTP (updated 2025-11-10) |
 | `RATE_LIMIT_WINDOW_MINUTES` | No | `15` | Rate limit time window in minutes |
 | `RATE_LIMIT_MAX_REQUESTS` | No | `3` | Max OTP requests per window per email |
 
@@ -126,7 +132,7 @@ Verify OTP and receive JWT token.
 }
 ```
 
-**Response**:
+**Response** (Updated 2025-11-10):
 ```json
 {
   "success": true,
@@ -136,8 +142,11 @@ Verify OTP and receive JWT token.
     "email": "user@example.com",
     "phone": "+1234567890",
     "otpPreference": "sms",
+    "role": "user",
+    "isActive": true,
+    "verifiedAt": "2025-11-10T20:31:31.907549Z",
     "createdAt": "2025-11-09T12:00:00Z",
-    "lastLoginAt": "2025-11-09T12:00:00Z"
+    "lastLoginAt": "2025-11-10T20:31:31.899079Z"
   }
 }
 ```
@@ -151,15 +160,18 @@ Get current user profile (requires Authorization header).
 Authorization: Bearer <jwt-token>
 ```
 
-**Response**:
+**Response** (Updated 2025-11-10):
 ```json
 {
   "id": "uuid",
   "email": "user@example.com",
   "phone": "+1234567890",
   "otpPreference": "sms",
+  "role": "user",
+  "isActive": true,
+  "verifiedAt": "2025-11-10T20:31:31.907549Z",
   "createdAt": "2025-11-09T12:00:00Z",
-  "lastLoginAt": "2025-11-09T12:00:00Z"
+  "lastLoginAt": "2025-11-10T20:31:31.899079Z"
 }
 ```
 
@@ -175,42 +187,116 @@ Logout (client clears cookie/token).
 }
 ```
 
+### POST /auth/admin/create-user (Added 2025-11-10)
+
+Admin endpoint to create new users with specific roles.
+
+**Headers**:
+```
+X-Admin-Token: <admin-token-from-env>
+```
+
+**Request Body**:
+```json
+{
+  "email": "admin@example.com",
+  "phone": "+1234567890",
+  "preference": "sms",
+  "role": "admin"  // "user", "admin", or "super"
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "message": "User admin@example.com created successfully",
+  "user": {
+    "id": "uuid",
+    "email": "admin@example.com",
+    "phone": "+1234567890",
+    "otpPreference": "sms",
+    "role": "admin",
+    "isActive": true,
+    "verifiedAt": null,
+    "createdAt": "2025-11-10T20:20:00.974515Z",
+    "lastLoginAt": null
+  }
+}
+```
+
+**Note**: Requires `ADMIN_TOKEN` environment variable. Generate with: `openssl rand -hex 32`
+
 ---
 
 ## Database Schema
 
 The Auth Service creates the following tables in the `auth` schema:
 
-### auth.users
+### auth.users (Updated 2025-11-10)
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() |
-| `email` | VARCHAR(255) | UNIQUE NOT NULL, CHECK (lowercase) |
-| `phone` | VARCHAR(50) | - |
-| `otp_preference` | VARCHAR(10) | CHECK IN ('sms', 'email') |
-| `created_at` | TIMESTAMPTZ | DEFAULT NOW() |
-| `last_login_at` | TIMESTAMPTZ | - |
+| `email` | VARCHAR(255) | UNIQUE NOT NULL (primary identifier), CHECK (lowercase) |
+| `phone` | VARCHAR(50) | NULLABLE (optional, E.164 format) |
+| `otp_preference` | VARCHAR(10) | NULLABLE, CHECK IN ('sms', 'email') |
+| `role` | VARCHAR(20) | NOT NULL DEFAULT 'user', CHECK IN ('user', 'admin', 'super') |
+| `is_active` | BOOLEAN | NOT NULL DEFAULT true |
+| `verified_at` | TIMESTAMPTZ | NULLABLE (set on first OTP verification) |
+| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
+| `last_login_at` | TIMESTAMPTZ | NULLABLE |
+| `updated_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
+| `created_by` | UUID | NULLABLE (references auth.users.id) |
 
-**Indexes**: `email`, `created_at DESC`
+**Indexes**: 
+- UNIQUE INDEX on `lower(email)`
+- Non-unique INDEX on `phone` WHERE phone IS NOT NULL
+- INDEX on `created_at DESC`
 
-### auth.otp_storage
+### auth.otp_challenges (Updated 2025-11-10)
 
 | Column | Type | Constraints |
 |--------|------|-------------|
-| `email` | VARCHAR(255) | PRIMARY KEY |
-| `otp_hash` | VARCHAR(255) | NOT NULL (bcrypt hash) |
-| `attempts` | INTEGER | DEFAULT 0 |
+| `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() |
+| `user_id` | UUID | NOT NULL, FOREIGN KEY → auth.users.id |
+| `code_hash` | BYTEA | NOT NULL (bcrypt hash) |
 | `expires_at` | TIMESTAMPTZ | NOT NULL |
-| `created_at` | TIMESTAMPTZ | DEFAULT NOW() |
+| `attempts` | INTEGER | NOT NULL DEFAULT 0 |
+| `max_attempts` | INTEGER | NOT NULL DEFAULT 8 |
+| `status` | VARCHAR(20) | NOT NULL DEFAULT 'sent', CHECK IN ('sent', 'approved', 'denied', 'expired', 'canceled') |
+| `sent_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
+| `used_at` | TIMESTAMPTZ | NULLABLE |
+| `request_ip` | TEXT | NULLABLE |
+| `user_agent` | TEXT | NULLABLE |
 
-### auth.rate_limit
+**Indexes**: `user_id`, `status`, `sent_at DESC`
+
+### auth.rate_limits (Updated 2025-11-10)
 
 | Column | Type | Constraints |
 |--------|------|-------------|
-| `email` | VARCHAR(255) | PRIMARY KEY |
-| `request_count` | INTEGER | DEFAULT 0 |
+| `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() |
+| `subject_type` | VARCHAR(20) | NOT NULL ('phone' for email [legacy], 'ip' for IP) |
+| `subject` | VARCHAR(255) | NOT NULL (email or IP address) |
 | `window_start` | TIMESTAMPTZ | NOT NULL |
+| `window_seconds` | INTEGER | NOT NULL (duration of rate limit window) |
+| `count` | INTEGER | NOT NULL DEFAULT 0 (current request count) |
+| `limit_value` | INTEGER | NOT NULL (max requests allowed in window) |
+
+**Indexes**: UNIQUE on `(subject_type, subject, window_start, window_seconds)`
+
+### Other Auth Tables
+
+The auth service also manages:
+- `auth.tenants` - Multi-tenancy support (for future use)
+- `auth.users_tenants` - User-tenant associations (for future use)
+- `auth.sessions` - JWT refresh tokens and session tracking (for future use)
+- `auth.login_audit` - Login attempt logging (for future use)
+- `auth.settings` - Service-level settings (for future use)
+- `auth.schema_registry` - Current schema version tracking
+- `auth.schema_registry_history` - Schema version history
+- `auth.migration_history` - Applied migration tracking
 
 ---
 
