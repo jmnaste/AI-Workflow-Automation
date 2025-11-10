@@ -9,7 +9,13 @@
 #   5. View logs: docker-compose -f docker-compose.local.yml logs -f <service>
 #   6. Rebuild single service: docker-compose -f docker-compose.local.yml up --build <service>
 
-version: '3.8'
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK}
+
+volumes:
+  pgdata_local:
 
 services:
   postgres:
