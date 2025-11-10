@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 
 try:
@@ -6,7 +7,26 @@ try:
 except Exception:  # pragma: no cover
     psycopg = None  # Optional import; endpoint will report if missing
 
-app = FastAPI(title="AI Workflow API", version="0.1.0")
+from .services.migrations import run_migrations
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Run database migrations and check auth version on startup."""
+    try:
+        run_migrations()
+        print("Database migrations completed successfully")
+        
+        # Check auth schema version if required
+        check_auth_schema_version()
+        
+    except Exception as e:
+        print(f"Startup failed: {e}")
+        raise
+    yield
+
+
+app = FastAPI(title="AI Workflow API", version="0.1.0", lifespan=lifespan)
 
 
 def _parse_semver(s: str) -> tuple[int, int, int]:
@@ -21,7 +41,6 @@ def _parse_semver(s: str) -> tuple[int, int, int]:
     return major, minor, patch
 
 
-@app.on_event("startup")
 def check_auth_schema_version():
     """Optionally gate API startup on a minimum Auth schema version.
 

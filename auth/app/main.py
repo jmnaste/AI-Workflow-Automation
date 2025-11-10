@@ -10,19 +10,20 @@ try:
 except Exception:  # pragma: no cover
     psycopg = None  # Optional import; endpoint will report if missing
 
-from .services.database import init_database
+from .services.migrations import run_migrations
 from .services import users, otp, jwt, sms
 from .services import email as email_service
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize database on startup."""
+    """Run database migrations on startup."""
     try:
-        init_database()
-        print("Database initialized successfully")
+        run_migrations()
+        print("Database migrations completed successfully")
     except Exception as e:
-        print(f"Database initialization failed: {e}")
+        print(f"Database migration failed: {e}")
+        raise
     yield
 
 
@@ -32,7 +33,7 @@ app = FastAPI(title="Auth Service", version="0.1.0", lifespan=lifespan)
 # Request/Response Models
 class RequestOtpRequest(BaseModel):
     email: EmailStr
-    phone: Optional[str] = None
+    phone: Optional[str] = Field(None, pattern=r"^\+[1-9]\d{1,14}$")
     preference: Optional[str] = Field(None, pattern="^(sms|email)$")
 
 
@@ -52,6 +53,9 @@ class UserProfile(BaseModel):
     email: str
     phone: Optional[str]
     otpPreference: Optional[str]
+    role: str
+    isActive: bool
+    verifiedAt: Optional[str]
     createdAt: Optional[str]
     lastLoginAt: Optional[str]
 
@@ -64,8 +68,9 @@ class VerifyOtpResponse(BaseModel):
 
 class CreateUserRequest(BaseModel):
     email: EmailStr
-    phone: str = Field(..., pattern=r"^\+?[1-9]\d{1,14}$")
-    preference: str = Field(..., pattern="^(sms|email)$")
+    phone: Optional[str] = Field(None, pattern=r"^\+[1-9]\d{1,14}$")
+    preference: Optional[str] = Field(None, pattern="^(sms|email)$")
+    role: str = Field(default="user", pattern="^(user|admin|super)$")
 
 
 class CreateUserResponse(BaseModel):
@@ -188,33 +193,47 @@ def versions(n: int = 5):
 
 @app.post("/auth/request-otp", response_model=RequestOtpResponse)
 def request_otp(request: RequestOtpRequest):
-    """Request OTP for email authentication.
+    """Request OTP for email-based authentication.
     
-    Only existing users (created by admin) can request OTP.
-    Self-registration is disabled.
+    For new users: requires phone and preference (sms or email)
+    For existing users: uses saved phone and preference
     """
-    email = request.email.lower()
+    email_addr = request.email.lower()
     
     # Check rate limiting
-    if otp.check_rate_limit(email):
+    if otp.check_rate_limit(email_addr):
         raise HTTPException(
             status_code=429,
             detail="Too many OTP requests. Please try again later."
         )
     
     # Check if user exists
-    user = users.find_user_by_email(email)
+    user = users.find_user_by_email(email_addr)
+    is_new_user = user is None
     
-    if user is None:
-        # User not found - deny access (no self-registration)
+    if is_new_user:
+        # New user - require phone and preference
+        if not request.phone or not request.preference:
+            raise HTTPException(
+                status_code=400,
+                detail="Phone number and OTP preference required for new users"
+            )
+        
+        # Create new user
+        try:
+            user = users.create_user(email_addr, request.phone, request.preference)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    
+    if not user.is_active:
         raise HTTPException(
             status_code=403,
-            detail="Access denied. Please contact an administrator to create your account."
+            detail="User account is inactive"
         )
     
     # Generate and store OTP
     otp_code = otp.generate_otp()
-    otp.store_otp(email, otp_code)
+    otp.store_otp(user.id, otp_code)
     
     # Send OTP based on preference
     preference = user.otp_preference
@@ -237,7 +256,7 @@ def request_otp(request: RequestOtpRequest):
                     status_code=500,
                     detail="Email delivery not configured"
                 )
-            if not email_service.send_otp_email(email, otp_code):
+            if not email_service.send_otp_email(email_addr, otp_code):
                 raise HTTPException(
                     status_code=500,
                     detail="Failed to send email"
@@ -251,31 +270,33 @@ def request_otp(request: RequestOtpRequest):
     return RequestOtpResponse(
         success=True,
         message=f"OTP sent to your {preference}",
-        isNewUser=False  # All users are pre-created by admin
+        isNewUser=is_new_user
     )
 
 
 @app.post("/auth/verify-otp", response_model=VerifyOtpResponse)
-def verify_otp(request: VerifyOtpRequest):
+def verify_otp_endpoint(request: VerifyOtpRequest):
     """Verify OTP and issue JWT token."""
     email_addr = request.email.lower()
-    
-    # Validate OTP
-    success, error_msg = otp.validate_otp(email_addr, request.otp)
-    
-    if not success:
-        raise HTTPException(status_code=400, detail=error_msg)
     
     # Get user
     user = users.find_user_by_email(email_addr)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Update last login
+    # Validate OTP
+    success, error_msg = otp.validate_otp(user.id, request.otp)
+    
+    if not success:
+        raise HTTPException(status_code=400, detail=error_msg)
+    
+    # Update last login and verify user if not already verified
     users.update_last_login(email_addr)
+    if not user.verified_at:
+        users.verify_user(email_addr)
     
     # Generate JWT
-    token = jwt.generate_jwt(str(user.id), user.email)
+    token = jwt.generate_jwt(str(user.id), user.email, user.role)
     
     # Return token and user profile
     user_dict = user.to_dict()
@@ -285,10 +306,13 @@ def verify_otp(request: VerifyOtpRequest):
         user=UserProfile(
             id=user_dict["id"],
             email=user_dict["email"],
-            phone=user_dict["phone"],
-            otpPreference=user_dict["otp_preference"],
-            createdAt=user_dict["created_at"],
-            lastLoginAt=user_dict["last_login_at"]
+            phone=user_dict.get("phone"),
+            otpPreference=user_dict.get("otp_preference"),
+            role=user_dict["role"],
+            isActive=user_dict["is_active"],
+            verifiedAt=user_dict.get("verified_at"),
+            createdAt=user_dict.get("created_at"),
+            lastLoginAt=user_dict.get("last_login_at")
         )
     )
 
@@ -321,10 +345,13 @@ def get_current_user(authorization: Optional[str] = Header(None)):
         return UserProfile(
             id=user_dict["id"],
             email=user_dict["email"],
-            phone=user_dict["phone"],
-            otpPreference=user_dict["otp_preference"],
-            createdAt=user_dict["created_at"],
-            lastLoginAt=user_dict["last_login_at"]
+            phone=user_dict.get("phone"),
+            otpPreference=user_dict.get("otp_preference"),
+            role=user_dict["role"],
+            isActive=user_dict["is_active"],
+            verifiedAt=user_dict.get("verified_at"),
+            createdAt=user_dict.get("created_at"),
+            lastLoginAt=user_dict.get("last_login_at")
         )
     except pyjwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
@@ -357,33 +384,36 @@ def create_user_admin(
             detail="Invalid or missing admin token"
         )
     
-    email = request.email.lower()
+    email_addr = request.email.lower()
     
     # Check if user already exists
-    existing_user = users.find_user_by_email(email)
+    existing_user = users.find_user_by_email(email_addr)
     if existing_user:
         raise HTTPException(
             status_code=409,
-            detail=f"User with email {email} already exists"
+            detail=f"User with email {email_addr} already exists"
         )
     
     # Create user
     try:
-        user = users.create_user(email, request.phone, request.preference)
+        user = users.create_user(email_addr, request.phone, request.preference, request.role)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     
     user_dict = user.to_dict()
     return CreateUserResponse(
         success=True,
-        message=f"User {email} created successfully",
+        message=f"User {email_addr} created successfully",
         user=UserProfile(
             id=user_dict["id"],
             email=user_dict["email"],
-            phone=user_dict["phone"],
-            otpPreference=user_dict["otp_preference"],
-            createdAt=user_dict["created_at"],
-            lastLoginAt=user_dict["last_login_at"]
+            phone=user_dict.get("phone"),
+            otpPreference=user_dict.get("otp_preference"),
+            role=user_dict["role"],
+            isActive=user_dict["is_active"],
+            verifiedAt=user_dict.get("verified_at"),
+            createdAt=user_dict.get("created_at"),
+            lastLoginAt=user_dict.get("last_login_at")
         )
     )
 

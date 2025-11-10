@@ -12,12 +12,13 @@ def get_jwt_secret() -> str:
     return secret
 
 
-def generate_jwt(user_id: str, email: str) -> str:
+def generate_jwt(user_id: str, email: str, role: str = 'user') -> str:
     """Generate JWT token for user.
     
     Args:
         user_id: User UUID as string
-        email: User email
+        email: User email address
+        role: User role (user, admin, super)
     
     Returns:
         JWT token string
@@ -28,6 +29,7 @@ def generate_jwt(user_id: str, email: str) -> str:
     payload = {
         "userId": user_id,
         "email": email,
+        "role": role,
         "exp": expiry,
         "iat": datetime.utcnow(),
     }
