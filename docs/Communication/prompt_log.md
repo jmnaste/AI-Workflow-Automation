@@ -16,6 +16,15 @@ Entries are appended in reverse chronological order.
 
 ---
 
+## 2025-11-10 22:00 — Admin console with JWT role-based access control
+- Prompt:
+```
+In the flovify UI there needs to be a part that is an administration console available only to users of class admin. How do you see that?
+```
+- Answer: Implemented complete admin console with vertical architecture (UI, BFF, Auth service). Added role-based navigation with AdminLayout protection, UserManagement page (list/activate/deactivate users), SystemSettings page (OTP and rate limit config). Created BFF admin proxy endpoints with JWT role verification middleware. Added Auth service admin endpoints supporting JWT authentication (list users, update user role/status, get/update settings). Updated JWT payload to include role field for authorization checks across all layers.
+
+---
+
 ## 2025-11-10 16:40 — React Context for reactive auth state
 - Prompt:
 ```
