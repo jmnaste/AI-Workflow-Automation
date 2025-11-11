@@ -7,7 +7,14 @@ const router = express.Router();
 const AUTH_SERVICE_URL = process.env.AUTH_BASE_URL || 'http://auth:8000';
 
 /**
- * Middleware to verify admin role
+ * Middleware to verify admin role.
+ * 
+ * User Role Definitions:
+ * - user: Standard user with basic access
+ * - super: Elevated user with additional business workflow privileges (NOT admin console)
+ * - admin: Full administrative access including admin console and user management
+ * 
+ * Only 'admin' role can access admin console routes.
  */
 function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction): void {
   if (!req.user) {
@@ -16,7 +23,8 @@ function requireAdmin(req: express.Request, res: express.Response, next: express
   }
   
   const role = (req.user as any).role;
-  if (role !== 'admin' && role !== 'super') {
+  // Only 'admin' role can access admin console
+  if (role !== 'admin') {
     res.status(403).json({ error: 'Admin access required' });
     return;
   }
@@ -68,6 +76,39 @@ router.get('/users', async (req, res) => {
 });
 
 /**
+ * POST /bff/admin/users
+ * Create a new user (admin only)
+ */
+router.post('/users', async (req, res) => {
+  try {
+    const token = req.cookies[process.env.JWT_COOKIE_NAME || 'flovify_token'];
+    
+    const response = await fetch(`${AUTH_SERVICE_URL}/auth/admin/users`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(req.body),
+    });
+    
+    const data = await response.json() as any;
+    
+    if (!response.ok) {
+      res.status(response.status).json(data);
+      return;
+    }
+    
+    req.log.info({ admin: req.user?.email, email: req.body.email }, 'Admin created user');
+    res.json(data);
+    
+  } catch (error) {
+    req.log.error({ error }, 'Failed to proxy admin/users POST to Auth Service');
+    res.status(500).json({ error: 'Failed to connect to authentication service' });
+  }
+});
+
+/**
  * PATCH /bff/admin/users/:id
  * Update user role or status (admin only)
  */
@@ -97,6 +138,38 @@ router.patch('/users/:id', async (req, res) => {
     
   } catch (error) {
     req.log.error({ error }, 'Failed to proxy admin/users/:id to Auth Service');
+    res.status(500).json({ error: 'Failed to connect to authentication service' });
+  }
+});
+
+/**
+ * DELETE /bff/admin/users/:id
+ * Delete user (admin only)
+ */
+router.delete('/users/:id', async (req, res) => {
+  try {
+    const token = req.cookies[process.env.JWT_COOKIE_NAME || 'flovify_token'];
+    const userId = req.params.id;
+    
+    const response = await fetch(`${AUTH_SERVICE_URL}/auth/admin/users/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    const data = await response.json() as any;
+    
+    if (!response.ok) {
+      res.status(response.status).json(data);
+      return;
+    }
+    
+    req.log.info({ admin: req.user?.email, userId }, 'Admin deleted user');
+    res.json(data);
+    
+  } catch (error) {
+    req.log.error({ error }, 'Failed to proxy admin/users/:id DELETE to Auth Service');
     res.status(500).json({ error: 'Failed to connect to authentication service' });
   }
 });

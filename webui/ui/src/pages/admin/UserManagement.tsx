@@ -19,13 +19,22 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import BlockIcon from '@mui/icons-material/Block';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-import { listUsers, updateUser, AdminUser } from '../../lib/api/admin';
+import { listUsers, updateUser, createUser, deleteUser, AdminUser } from '../../lib/api/admin';
+import CreateUserDialog from '../../components/admin/CreateUserDialog';
+import EditUserDialog from '../../components/admin/EditUserDialog';
+import DeleteConfirmDialog from '../../components/admin/DeleteConfirmDialog';
 
 export default function UserManagement() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Fetch users on mount
   useEffect(() => {
@@ -51,6 +60,55 @@ export default function UserManagement() {
       setUsers(users.map(u => (u.id === user.id ? updated.user : u)));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update user');
+    }
+  };
+
+  const handleCreateUser = async (userData: {
+    email: string;
+    phone?: string;
+    preference?: 'sms' | 'email';
+    role: 'user' | 'admin' | 'super';
+  }) => {
+    try {
+      await createUser(userData);
+      await loadUsers(); // Refresh the list
+    } catch (err) {
+      throw err; // Let dialog handle the error
+    }
+  };
+
+  const handleEditClick = (user: AdminUser) => {
+    setSelectedUser(user);
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateUser = async (userId: string, updates: any) => {
+    try {
+      await updateUser(userId, updates);
+      await loadUsers(); // Refresh the list
+    } catch (err) {
+      throw err; // Let dialog handle the error
+    }
+  };
+
+  const handleDeleteClick = (user: AdminUser) => {
+    setSelectedUser(user);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedUser) return;
+    
+    try {
+      setDeleteLoading(true);
+      await deleteUser(selectedUser.id);
+      await loadUsers(); // Refresh the list
+      setDeleteDialogOpen(false);
+      setSelectedUser(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete user');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -88,10 +146,7 @@ export default function UserManagement() {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => {
-            // TODO: Open create user dialog
-            console.log('Create user');
-          }}
+          onClick={() => setCreateDialogOpen(true)}
         >
           Create User
         </Button>
@@ -143,10 +198,7 @@ export default function UserManagement() {
                   <Tooltip title="Edit user">
                     <IconButton
                       size="small"
-                      onClick={() => {
-                        // TODO: Open edit dialog
-                        console.log('Edit user', user.id);
-                      }}
+                      onClick={() => handleEditClick(user)}
                     >
                       <EditIcon fontSize="small" />
                     </IconButton>
@@ -159,12 +211,51 @@ export default function UserManagement() {
                       {user.isActive ? <BlockIcon fontSize="small" /> : <CheckCircleIcon fontSize="small" />}
                     </IconButton>
                   </Tooltip>
+                  <Tooltip title="Delete user">
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => handleDeleteClick(user)}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Create User Dialog */}
+      <CreateUserDialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        onCreate={handleCreateUser}
+      />
+
+      {/* Edit User Dialog */}
+      <EditUserDialog
+        open={editDialogOpen}
+        user={selectedUser}
+        onClose={() => {
+          setEditDialogOpen(false);
+          setSelectedUser(null);
+        }}
+        onUpdate={handleUpdateUser}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        userEmail={selectedUser?.email || ''}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setSelectedUser(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        loading={deleteLoading}
+      />
     </Box>
   );
 }

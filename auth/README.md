@@ -129,6 +129,16 @@ Security tips:
 - Validate signatures or tokens from the sender
 - Optionally add Traefik middlewares (rate limit, IP allowlist, basic auth)
 
+## User Roles
+
+The Auth service defines three user roles:
+
+- **user**: Standard user with basic access
+- **super**: Elevated user with additional business workflow privileges (NO admin console access)
+- **admin**: Full administrative access including admin console and user management
+
+**Important**: Only the `admin` role can access admin console endpoints (`/auth/admin/*`). Super users have elevated privileges for business workflows but CANNOT access user management or admin endpoints.
+
 ## Creating admin users
 
 To create an admin user, use the `/auth/admin/create-user` endpoint with the `ADMIN_TOKEN`:

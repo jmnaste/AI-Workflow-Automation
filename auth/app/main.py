@@ -14,6 +14,16 @@ from .services.migrations import run_migrations
 from .services import users, otp, jwt, sms
 from .services import email as email_service
 
+"""
+User Role Definitions:
+- user: Standard user with basic access (no admin console access)
+- super: Elevated user with additional privileges in business workflows (no admin console access)
+- admin: Full administrative access including admin console and user management
+
+Note: Only 'admin' role has access to admin console endpoints (/auth/admin/*).
+Super users have elevated business privileges but cannot access user management.
+"""
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -102,6 +112,19 @@ class SystemSettings(BaseModel):
     otpMaxAttempts: int
     rateLimitWindow: int  # minutes
     rateLimitMaxRequests: int
+
+
+class UpdateUserRequest(BaseModel):
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    preference: Optional[str] = None
+    role: Optional[str] = None
+    isActive: Optional[bool] = None
+
+
+class DeleteUserResponse(BaseModel):
+    success: bool
+    message: str
 
 
 @app.get("/auth/health")
@@ -387,7 +410,15 @@ def get_current_user(authorization: Optional[str] = Header(None)):
 # Admin Endpoints
 
 def verify_admin_jwt(authorization: Optional[str]) -> dict:
-    """Verify JWT and check for admin/super role."""
+    """Verify JWT and check for admin role.
+    
+    Only 'admin' role has access to admin console endpoints.
+    'super' users have elevated business privileges but NOT admin console access.
+    
+    Raises:
+        HTTPException: 401 if token is missing/invalid/expired
+        HTTPException: 403 if user role is not 'admin'
+    """
     if not authorization:
         raise HTTPException(status_code=401, detail="Authorization header required")
     
@@ -401,7 +432,8 @@ def verify_admin_jwt(authorization: Optional[str]) -> dict:
         payload = jwt.verify_jwt(token)
         role = payload.get("role")
         
-        if role not in ("admin", "super"):
+        # Only 'admin' role can access admin console
+        if role != "admin":
             raise HTTPException(status_code=403, detail="Admin access required")
         
         return payload
@@ -580,6 +612,130 @@ def update_user_admin(
             createdAt=user_dict.get("created_at"),
             lastLoginAt=user_dict.get("last_login_at")
         )
+    )
+
+
+@app.post("/auth/admin/users", response_model=CreateUserResponse)
+def create_user_by_admin(
+    request: CreateUserRequest,
+    authorization: Optional[str] = Header(None)
+):
+    """Admin endpoint to create a new user.
+    
+    Requires JWT Bearer token with admin/super role.
+    """
+    verify_admin_jwt(authorization)
+    
+    email_addr = request.email.lower()
+    
+    # Check if user already exists
+    existing_user = users.find_user_by_email(email_addr)
+    if existing_user:
+        raise HTTPException(
+            status_code=409,
+            detail=f"User with email {email_addr} already exists"
+        )
+    
+    # Create user
+    try:
+        user = users.create_user(email_addr, request.phone, request.preference, request.role)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    user_dict = user.to_dict()
+    return CreateUserResponse(
+        success=True,
+        message=f"User {email_addr} created successfully",
+        user=UserProfile(
+            id=user_dict["id"],
+            email=user_dict["email"],
+            phone=user_dict.get("phone"),
+            otpPreference=user_dict.get("otp_preference"),
+            role=user_dict["role"],
+            isActive=user_dict["is_active"],
+            verifiedAt=user_dict.get("verified_at"),
+            createdAt=user_dict.get("created_at"),
+            lastLoginAt=user_dict.get("last_login_at")
+        )
+    )
+
+
+@app.patch("/auth/admin/users/{user_id}", response_model=UpdateUserResponse)
+def update_user_admin(
+    user_id: str,
+    update_data: UpdateUserRequest,
+    authorization: Optional[str] = Header(None)
+):
+    """Admin endpoint to update a user.
+    
+    Requires JWT Bearer token with admin/super role.
+    """
+    verify_admin_jwt(authorization)
+    
+    # Find user
+    user = users.find_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update user
+    try:
+        updated_user = users.update_user(
+            user_id=user_id,
+            email=update_data.email,
+            phone=update_data.phone,
+            otp_preference=update_data.preference,
+            role=update_data.role,
+            is_active=update_data.isActive
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    user_dict = updated_user.to_dict()
+    
+    return UpdateUserResponse(
+        success=True,
+        message=f"User {user_dict['email']} updated successfully",
+        user=UserProfile(
+            id=user_dict["id"],
+            email=user_dict["email"],
+            phone=user_dict.get("phone"),
+            otpPreference=user_dict.get("otp_preference"),
+            role=user_dict["role"],
+            isActive=user_dict["is_active"],
+            verifiedAt=user_dict.get("verified_at"),
+            createdAt=user_dict.get("created_at"),
+            lastLoginAt=user_dict.get("last_login_at")
+        )
+    )
+
+
+@app.delete("/auth/admin/users/{user_id}", response_model=DeleteUserResponse)
+def delete_user_admin(
+    user_id: str,
+    authorization: Optional[str] = Header(None)
+):
+    """Admin endpoint to delete a user.
+    
+    Requires JWT Bearer token with admin/super role.
+    """
+    verify_admin_jwt(authorization)
+    
+    # Find user
+    user = users.find_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    email = user.to_dict()["email"]
+    
+    # Delete user
+    try:
+        users.delete_user(user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    return DeleteUserResponse(
+        success=True,
+        message=f"User {email} deleted successfully"
     )
 
 

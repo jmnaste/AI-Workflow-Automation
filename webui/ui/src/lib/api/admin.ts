@@ -19,6 +19,9 @@ export interface ListUsersResponse {
 }
 
 export interface UpdateUserRequest {
+  email?: string;
+  phone?: string;
+  preference?: 'sms' | 'email' | 'none';
   role?: 'user' | 'admin' | 'super';
   isActive?: boolean;
 }
@@ -63,6 +66,30 @@ export async function listUsers(params?: {
 }
 
 /**
+ * Create a new user (admin only)
+ */
+export async function createUser(userData: {
+  email: string;
+  phone?: string;
+  preference?: 'sms' | 'email';
+  role?: 'user' | 'admin' | 'super';
+}): Promise<UpdateUserResponse> {
+  const response = await fetch('/bff/admin/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userData),
+    credentials: 'include',
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || error.error || 'Failed to create user');
+  }
+  
+  return response.json();
+}
+
+/**
  * Update user role or status (admin only)
  */
 export async function updateUser(userId: string, updates: UpdateUserRequest): Promise<UpdateUserResponse> {
@@ -76,6 +103,23 @@ export async function updateUser(userId: string, updates: UpdateUserRequest): Pr
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to update user');
+  }
+  
+  return response.json();
+}
+
+/**
+ * Delete user (admin only)
+ */
+export async function deleteUser(userId: string): Promise<{ success: boolean; message: string }> {
+  const response = await fetch(`/bff/admin/users/${userId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to delete user');
   }
   
   return response.json();

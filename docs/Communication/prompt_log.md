@@ -16,6 +16,32 @@ Entries are appended in reverse chronological order.
 
 ---
 
+## 2025-11-11 17:15 — User role clarification and edit user implementation
+- Prompts:
+```
+Implement edit user
+
+user classes are:
+user - simple user
+super user - user with more privileges
+admin - all privileges
+
+super user does not have privileges for anything in the admin console. 
+Please make sure this is documented where appropriate.
+```
+- Answer: Implemented complete edit user functionality across all layers (Auth service update_user function, PATCH endpoint, BFF proxy, UI EditUserDialog component with full field editing). Clarified and documented user role definitions: 'user' has basic access, 'super' has elevated business workflow privileges but NO admin console access, 'admin' has full administrative access. Updated access control to restrict admin console to admin role only (changed from admin/super to admin-only). Documentation added to Auth service, BFF, copilot-instructions.md, auth README, and UI components.
+
+---
+
+## 2025-11-11 14:30 — Repository organization and file consolidation
+- Prompt:
+```
+files 2. Platform_architecture.md and 3. Engineering_method_vibe.md are in project's root and in docs/inception. There should be only the ones in docs/inception. Can you tell difference between the versions and propose a merge if required.
+```
+- Answer: Analyzed both duplicate files, found root versions had significant additional content (BFF layer architecture, detailed commit workflows, repository hygiene section). Merged unique content bidirectionally: copied enhanced Platform_architecture.md from root to Inception, merged repository hygiene section from Inception into root Engineering_method_vibe.md, then copied to Inception. Deleted root duplicates, verified only Inception versions remain with complete merged content.
+
+---
+
 ## 2025-11-10 22:00 — Admin console with JWT role-based access control
 - Prompt:
 ```

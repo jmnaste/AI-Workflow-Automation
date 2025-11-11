@@ -256,3 +256,75 @@ def update_user_status(user_id: str, is_active: bool) -> User:
                 row['role'], row['is_active'], row['verified_at'], row['last_login_at'],
                 row['created_by'], row['created_at'], row['updated_at']
             )
+
+
+def update_user(user_id: str, email: Optional[str] = None, phone: Optional[str] = None,
+                otp_preference: Optional[str] = None, role: Optional[str] = None,
+                is_active: Optional[bool] = None) -> User:
+    """Update user fields (admin function)."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            # Build dynamic UPDATE query based on provided fields
+            updates = []
+            params = []
+            
+            if email is not None:
+                updates.append("email = %s")
+                params.append(email)
+            if phone is not None:
+                updates.append("phone = %s")
+                params.append(phone)
+            if otp_preference is not None:
+                updates.append("otp_preference = %s")
+                params.append(otp_preference)
+            if role is not None:
+                updates.append("role = %s")
+                params.append(role)
+            if is_active is not None:
+                updates.append("is_active = %s")
+                params.append(is_active)
+            
+            if not updates:
+                # No fields to update, just return current user
+                return find_user_by_id(user_id)
+            
+            updates.append("updated_at = NOW()")
+            params.append(user_id)
+            
+            query = f"""UPDATE auth.users 
+                       SET {', '.join(updates)}
+                       WHERE id = %s
+                       RETURNING id, email, phone, otp_preference, role, is_active, verified_at,
+                                 last_login_at, created_by, created_at, updated_at"""
+            
+            cur.execute(query, params)
+            conn.commit()
+            row = cur.fetchone()
+            if not row:
+                raise ValueError("User not found")
+            return User(
+                row['id'], row['email'], row['phone'], row['otp_preference'],
+                row['role'], row['is_active'], row['verified_at'], row['last_login_at'],
+                row['created_by'], row['created_at'], row['updated_at']
+            )
+
+
+def delete_user(user_id: str) -> None:
+    """Delete a user (admin function)."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            # First delete related OTP challenges
+            cur.execute(
+                "DELETE FROM auth.otp_challenges WHERE user_id = %s",
+                (user_id,)
+            )
+            
+            # Then delete the user
+            cur.execute(
+                "DELETE FROM auth.users WHERE id = %s RETURNING id",
+                (user_id,)
+            )
+            conn.commit()
+            row = cur.fetchone()
+            if not row:
+                raise ValueError("User not found")
