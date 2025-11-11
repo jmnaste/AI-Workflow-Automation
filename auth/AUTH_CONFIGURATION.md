@@ -227,6 +227,22 @@ X-Admin-Token: <admin-token-from-env>
 
 **Note**: Requires `ADMIN_TOKEN` environment variable. Generate with: `openssl rand -hex 32`
 
+**Example curl request (Windows CMD):**
+```cmd
+curl -X POST http://localhost:8000/auth/admin/create-user ^
+  -H "X-Admin-Token: your_admin_token_here" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"email\":\"admin@example.com\",\"phone\":\"+1234567890\",\"preference\":\"sms\",\"role\":\"admin\"}"
+```
+
+**Example curl request (Linux/Mac/PowerShell):**
+```bash
+curl -X POST http://localhost:8000/auth/admin/create-user \
+  -H "X-Admin-Token: your_admin_token_here" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","phone":"+1234567890","preference":"sms","role":"admin"}'
+```
+
 ---
 
 ## Database Schema

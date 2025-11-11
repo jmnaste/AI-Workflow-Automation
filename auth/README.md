@@ -129,6 +129,22 @@ Security tips:
 - Validate signatures or tokens from the sender
 - Optionally add Traefik middlewares (rate limit, IP allowlist, basic auth)
 
+## Creating admin users
+
+To create an admin user, use the `/auth/admin/create-user` endpoint with the `ADMIN_TOKEN`:
+
+```bash
+# See AUTH_CONFIGURATION.md for detailed curl examples (Windows CMD and Linux/Mac)
+curl -X POST http://auth:8000/auth/admin/create-user \
+  -H "X-Admin-Token: your_admin_token_here" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","phone":"+15551234567","preference":"sms","role":"admin"}'
+```
+
+**For complete API documentation and examples, see [AUTH_CONFIGURATION.md](./AUTH_CONFIGURATION.md).**
+
+---
+
 ## Database migrations (manual SQL only)
 
 This service owns the `auth` schema; migrations are applied manually via the numbered SQL files in `auth/migrations/`.

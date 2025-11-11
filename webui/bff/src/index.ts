@@ -5,6 +5,7 @@ import pino from 'pino';
 import pinoHttp from 'pino-http';
 import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.js';
+import adminRouter from './routes/admin.js';
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -36,6 +37,7 @@ app.use(cors({
 // Routes
 app.use('/bff/health', healthRouter);
 app.use('/bff/auth', authRouter);
+app.use('/bff/admin', adminRouter);
 
 // Error handler
 app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {

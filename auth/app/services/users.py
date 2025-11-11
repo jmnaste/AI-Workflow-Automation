@@ -69,15 +69,15 @@ def find_user_by_email(email: str) -> Optional[User]:
             return None
 
 
-def find_user_by_id(user_id: UUID) -> Optional[User]:
-    """Find user by ID."""
+def find_user_by_id(user_id) -> Optional[User]:
+    """Find user by ID (accepts UUID or string)."""
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """SELECT id, email, phone, otp_preference, role, is_active, verified_at,
                           last_login_at, created_by, created_at, updated_at
                    FROM auth.users WHERE id = %s""",
-                (user_id,)
+                (str(user_id) if not isinstance(user_id, str) else user_id,)
             )
             row = cur.fetchone()
             if row:
@@ -180,5 +180,79 @@ def update_user(email: str, phone: Optional[str] = None,
             conn.commit()
             row = cur.fetchone()
             if row:
-                return User(*row)
+                return User(
+                    row['id'], row['email'], row['phone'], row['otp_preference'],
+                    row['role'], row['is_active'], row['verified_at'], row['last_login_at'],
+                    row['created_by'], row['created_at'], row['updated_at']
+                )
             return None
+
+
+def list_all_users() -> list[User]:
+    """List all users (admin function)."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT id, email, phone, otp_preference, role, is_active, verified_at,
+                          last_login_at, created_by, created_at, updated_at
+                   FROM auth.users
+                   ORDER BY created_at DESC"""
+            )
+            rows = cur.fetchall()
+            return [
+                User(
+                    row['id'], row['email'], row['phone'], row['otp_preference'],
+                    row['role'], row['is_active'], row['verified_at'], row['last_login_at'],
+                    row['created_by'], row['created_at'], row['updated_at']
+                )
+                for row in rows
+            ]
+
+
+def update_user_role(user_id: str, role: str) -> User:
+    """Update user role (admin function)."""
+    if role not in ('user', 'admin', 'super'):
+        raise ValueError(f"Invalid role: {role}")
+    
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """UPDATE auth.users 
+                   SET role = %s, updated_at = NOW()
+                   WHERE id = %s
+                   RETURNING id, email, phone, otp_preference, role, is_active, verified_at,
+                             last_login_at, created_by, created_at, updated_at""",
+                (role, user_id)
+            )
+            conn.commit()
+            row = cur.fetchone()
+            if not row:
+                raise ValueError("User not found")
+            return User(
+                row['id'], row['email'], row['phone'], row['otp_preference'],
+                row['role'], row['is_active'], row['verified_at'], row['last_login_at'],
+                row['created_by'], row['created_at'], row['updated_at']
+            )
+
+
+def update_user_status(user_id: str, is_active: bool) -> User:
+    """Update user active status (admin function)."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """UPDATE auth.users 
+                   SET is_active = %s, updated_at = NOW()
+                   WHERE id = %s
+                   RETURNING id, email, phone, otp_preference, role, is_active, verified_at,
+                             last_login_at, created_by, created_at, updated_at""",
+                (is_active, user_id)
+            )
+            conn.commit()
+            row = cur.fetchone()
+            if not row:
+                raise ValueError("User not found")
+            return User(
+                row['id'], row['email'], row['phone'], row['otp_preference'],
+                row['role'], row['is_active'], row['verified_at'], row['last_login_at'],
+                row['created_by'], row['created_at'], row['updated_at']
+            )

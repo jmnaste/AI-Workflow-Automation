@@ -79,6 +79,31 @@ class CreateUserResponse(BaseModel):
     user: UserProfile
 
 
+class ListUsersResponse(BaseModel):
+    users: list[UserProfile]
+    total: int
+    page: int
+    limit: int
+
+
+class UpdateUserRequest(BaseModel):
+    role: Optional[str] = Field(None, pattern="^(user|admin|super)$")
+    isActive: Optional[bool] = None
+
+
+class UpdateUserResponse(BaseModel):
+    success: bool
+    message: str
+    user: UserProfile
+
+
+class SystemSettings(BaseModel):
+    otpExpiry: int  # minutes
+    otpMaxAttempts: int
+    rateLimitWindow: int  # minutes
+    rateLimitMaxRequests: int
+
+
 @app.get("/auth/health")
 def health():
     """Minimal liveness endpoint for internal checks."""
@@ -361,27 +386,64 @@ def get_current_user(authorization: Optional[str] = Header(None)):
 
 # Admin Endpoints
 
+def verify_admin_jwt(authorization: Optional[str]) -> dict:
+    """Verify JWT and check for admin/super role."""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authorization header required")
+    
+    parts = authorization.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Invalid authorization header format")
+    
+    token = parts[1]
+    
+    try:
+        payload = jwt.verify_jwt(token)
+        role = payload.get("role")
+        
+        if role not in ("admin", "super"):
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        return payload
+    except pyjwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except pyjwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
 @app.post("/auth/admin/create-user", response_model=CreateUserResponse)
 def create_user_admin(
     request: CreateUserRequest,
+    authorization: Optional[str] = Header(None),
     x_admin_token: Optional[str] = Header(None)
 ):
     """Admin endpoint to create new users.
     
-    Requires X-Admin-Token header matching ADMIN_TOKEN environment variable.
+    Supports two auth methods:
+    1. JWT Bearer token with admin/super role (preferred)
+    2. X-Admin-Token header (legacy, for bootstrapping first admin)
     """
-    # Verify admin token
-    admin_token = os.environ.get("ADMIN_TOKEN")
-    if not admin_token:
+    # Try JWT authentication first
+    if authorization:
+        verify_admin_jwt(authorization)
+    elif x_admin_token:
+        # Fallback to legacy X-Admin-Token for bootstrapping
+        admin_token = os.environ.get("ADMIN_TOKEN")
+        if not admin_token:
+            raise HTTPException(
+                status_code=500,
+                detail="Admin functionality not configured"
+            )
+        
+        if x_admin_token != admin_token:
+            raise HTTPException(
+                status_code=403,
+                detail="Invalid admin token"
+            )
+    else:
         raise HTTPException(
-            status_code=500,
-            detail="Admin functionality not configured"
-        )
-    
-    if not x_admin_token or x_admin_token != admin_token:
-        raise HTTPException(
-            status_code=403,
-            detail="Invalid or missing admin token"
+            status_code=401,
+            detail="Authorization required (Bearer token or X-Admin-Token)"
         )
     
     email_addr = request.email.lower()
@@ -416,6 +478,146 @@ def create_user_admin(
             lastLoginAt=user_dict.get("last_login_at")
         )
     )
+
+
+@app.get("/auth/admin/users", response_model=ListUsersResponse)
+def list_users_admin(
+    authorization: Optional[str] = Header(None),
+    page: int = 1,
+    limit: int = 50,
+    search: Optional[str] = None
+):
+    """Admin endpoint to list all users.
+    
+    Requires JWT Bearer token with admin/super role.
+    """
+    verify_admin_jwt(authorization)
+    
+    # Validate pagination
+    if page < 1:
+        raise HTTPException(status_code=400, detail="Page must be >= 1")
+    if limit < 1 or limit > 100:
+        raise HTTPException(status_code=400, detail="Limit must be between 1 and 100")
+    
+    offset = (page - 1) * limit
+    
+    # Get all users (simplified - no search yet)
+    all_users = users.list_all_users()
+    
+    # Apply search filter if provided
+    if search:
+        search_lower = search.lower()
+        all_users = [
+            u for u in all_users
+            if search_lower in u.to_dict()["email"].lower()
+            or (u.to_dict().get("phone") and search_lower in u.to_dict()["phone"])
+        ]
+    
+    total = len(all_users)
+    paginated_users = all_users[offset:offset + limit]
+    
+    user_profiles = []
+    for user in paginated_users:
+        user_dict = user.to_dict()
+        user_profiles.append(UserProfile(
+            id=user_dict["id"],
+            email=user_dict["email"],
+            phone=user_dict.get("phone"),
+            otpPreference=user_dict.get("otp_preference"),
+            role=user_dict["role"],
+            isActive=user_dict["is_active"],
+            verifiedAt=user_dict.get("verified_at"),
+            createdAt=user_dict.get("created_at"),
+            lastLoginAt=user_dict.get("last_login_at")
+        ))
+    
+    return ListUsersResponse(
+        users=user_profiles,
+        total=total,
+        page=page,
+        limit=limit
+    )
+
+
+@app.patch("/auth/admin/users/{user_id}", response_model=UpdateUserResponse)
+def update_user_admin(
+    user_id: str,
+    request: UpdateUserRequest,
+    authorization: Optional[str] = Header(None)
+):
+    """Admin endpoint to update user role or status.
+    
+    Requires JWT Bearer token with admin/super role.
+    """
+    verify_admin_jwt(authorization)
+    
+    # Find user
+    user = users.find_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update user fields
+    try:
+        if request.role is not None:
+            user = users.update_user_role(user_id, request.role)
+        if request.isActive is not None:
+            user = users.update_user_status(user_id, request.isActive)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    user_dict = user.to_dict()
+    return UpdateUserResponse(
+        success=True,
+        message=f"User {user_dict['email']} updated successfully",
+        user=UserProfile(
+            id=user_dict["id"],
+            email=user_dict["email"],
+            phone=user_dict.get("phone"),
+            otpPreference=user_dict.get("otp_preference"),
+            role=user_dict["role"],
+            isActive=user_dict["is_active"],
+            verifiedAt=user_dict.get("verified_at"),
+            createdAt=user_dict.get("created_at"),
+            lastLoginAt=user_dict.get("last_login_at")
+        )
+    )
+
+
+@app.get("/auth/admin/settings", response_model=SystemSettings)
+def get_settings_admin(authorization: Optional[str] = Header(None)):
+    """Admin endpoint to get system settings.
+    
+    Requires JWT Bearer token with admin/super role.
+    Returns current environment variable values.
+    """
+    verify_admin_jwt(authorization)
+    
+    return SystemSettings(
+        otpExpiry=int(os.environ.get("OTP_EXPIRY_MINUTES", "5")),
+        otpMaxAttempts=int(os.environ.get("OTP_MAX_ATTEMPTS", "8")),
+        rateLimitWindow=int(os.environ.get("RATE_LIMIT_WINDOW_MINUTES", "15")),
+        rateLimitMaxRequests=int(os.environ.get("RATE_LIMIT_MAX_REQUESTS", "3"))
+    )
+
+
+@app.post("/auth/admin/settings", response_model=SystemSettings)
+def update_settings_admin(
+    settings: SystemSettings,
+    authorization: Optional[str] = Header(None)
+):
+    """Admin endpoint to update system settings.
+    
+    Requires JWT Bearer token with admin/super role.
+    Note: Currently returns the requested settings but does not persist them.
+    Settings are configured via environment variables.
+    """
+    verify_admin_jwt(authorization)
+    
+    # Note: This endpoint accepts settings but doesn't persist them
+    # Settings are currently environment-variable based
+    # Future enhancement: Add runtime configuration storage
+    
+    return settings
 
 
 @app.post("/auth/logout")

@@ -13,6 +13,7 @@ if (JWT_SECRET === 'change-this-secret-in-production') {
 export interface JwtPayload {
   userId: string;
   email: string;
+  role: 'user' | 'admin' | 'super';
   iat?: number;
   exp?: number;
 }
