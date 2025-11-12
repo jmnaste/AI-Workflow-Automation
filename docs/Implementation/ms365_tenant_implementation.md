@@ -16,14 +16,14 @@ This document outlines the implementation plan for MS365 tenant management, enab
 
 **Goal**: Store tenant credentials and provide OAuth flow
 
-**Status**: ⬜ Not Started
+**Status**: ✅ Completed (OAuth testing pending Azure setup)
 
 ### 1.1 Database Migration (Auth Service)
 
-**Status**: ⬜ Not Started
+**Status**: ✅ Completed
 
-- [ ] Create migration file: `auth/migrations/0006_tenant_tokens.sql`
-  - [ ] Add `auth.tenant_tokens` table
+- [x] Create migration file: `auth/migrations/0006_tenant_tokens.sql`
+  - [x] Add `auth.tenant_tokens` table
     ```sql
     CREATE TABLE auth.tenant_tokens (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -39,64 +39,65 @@ This document outlines the implementation plan for MS365 tenant management, enab
       INDEX idx_tenant_tokens_expires_at (expires_at)
     );
     ```
-  - [ ] Add encryption helper functions (if not using application-level encryption)
-  - [ ] Update `auth.migration_history` footer
-  - [ ] Update `auth.schema_registry` to version `0.1.3`
-  - [ ] Update `auth.schema_registry_history`
+  - [x] Add encryption helper functions (using application-level encryption)
+  - [x] Update `auth.migration_history` footer
+  - [x] Update `auth.schema_registry` to version `0.1.3`
+  - [x] Update `auth.schema_registry_history`
 
-- [ ] Update `auth/migrations/README.md` with new migration documentation
+- [x] Update `auth/migrations/README.md` with new migration documentation
 
-- [ ] Test migration locally
+- [x] Test migration locally (applied successfully via postgres container)
   ```bash
-  docker exec -it auth psql -h postgres -U app_root -d app_db -f /auth/migrations/0006_tenant_tokens.sql
+  docker cp auth/migrations/0006_tenant_tokens.sql postgres:/tmp/
+  docker exec -i postgres psql -U app_root -d app_db -f /tmp/0006_tenant_tokens.sql
   ```
 
-- [ ] Verify tables created:
+- [x] Verify tables created:
   ```sql
-  \dt auth.tenant_tokens
-  SELECT * FROM auth.schema_registry WHERE service='auth';
+  \dt auth.tenant_tokens  -- ✅ Table created with all columns and constraints
+  SELECT * FROM auth.schema_registry WHERE service='auth';  -- ✅ Version 0.1.3
   ```
 
 ### 1.2 Auth Service OAuth Endpoints
 
-**Status**: ⬜ Not Started
+**Status**: ✅ Completed
 
 #### Services Layer
 
-- [ ] Create `auth/app/services/oauth.py`
-  - [ ] Implement token encryption/decryption utilities
-    - [ ] `encrypt_token(plaintext: str) -> str`
-    - [ ] `decrypt_token(ciphertext: str) -> str`
-    - [ ] Use `OAUTH_ENCRYPTION_KEY` from environment
-  - [ ] Implement MS365 OAuth helper functions
-    - [ ] `exchange_code_for_tokens(code: str, redirect_uri: str) -> dict`
-    - [ ] `refresh_access_token(refresh_token: str) -> dict`
-  - [ ] Implement tenant token management
-    - [ ] `store_tenant_tokens(tenant_id: UUID, tokens: dict) -> None`
-    - [ ] `get_tenant_token(tenant_id: UUID) -> str` (with auto-refresh)
-    - [ ] `refresh_tenant_token(tenant_id: UUID) -> str`
+- [x] Create `auth/app/services/oauth.py`
+  - [x] Implement token encryption/decryption utilities
+    - [x] `encrypt_token(plaintext: str) -> str`
+    - [x] `decrypt_token(ciphertext: str) -> str`
+    - [x] Use `OAUTH_ENCRYPTION_KEY` from environment
+  - [x] Implement MS365 OAuth helper functions
+    - [x] `exchange_code_for_tokens(code: str, redirect_uri: str) -> dict`
+    - [x] `refresh_access_token(refresh_token: str) -> dict`
+  - [x] Implement tenant token management
+    - [x] `store_tenant_tokens(tenant_id: UUID, tokens: dict) -> None`
+    - [x] `get_tenant_token(tenant_id: UUID) -> str` (with auto-refresh)
+    - [x] `refresh_tenant_token(tenant_id: UUID) -> str`
 
 #### Router Layer
 
-- [ ] Create `auth/app/routers/oauth.py`
-  - [ ] `GET /auth/oauth/ms365/authorize`
-    - [ ] Generate OAuth state token (CSRF protection)
-    - [ ] Store state in memory/cache with expiry (10 min)
-    - [ ] Build Microsoft authorization URL
-    - [ ] Redirect to Microsoft login
-  - [ ] `GET /auth/oauth/ms365/callback`
-    - [ ] Validate state parameter (CSRF check)
-    - [ ] Exchange authorization code for tokens
-    - [ ] Create or update `auth.tenants` record
-    - [ ] Store encrypted tokens in `auth.tenant_tokens`
-    - [ ] Redirect to UI success page
-  - [ ] `POST /auth/internal/tenant-token` (internal endpoint)
-    - [ ] Validate service-to-service auth (`X-Service-Token`)
-    - [ ] Accept `tenant_id` in request body
-    - [ ] Return valid access token (refresh if needed)
-    - [ ] Response: `{ "access_token": "...", "expires_at": "..." }`
+- [x] Create `auth/app/routers/oauth.py`
+  - [x] `GET /auth/oauth/ms365/authorize`
+    - [x] Generate OAuth state token (CSRF protection)
+    - [x] Store state in memory/cache with expiry (10 min)
+    - [x] Build Microsoft authorization URL
+    - [x] Redirect to Microsoft login
+  - [x] `GET /auth/oauth/ms365/callback`
+    - [x] Validate state parameter (CSRF check)
+    - [x] Exchange authorization code for tokens
+    - [x] Create or update `auth.tenants` record
+    - [x] Store encrypted tokens in `auth.tenant_tokens`
+    - [x] Redirect to UI success page
+  - [x] `POST /auth/internal/tenant-token` (internal endpoint)
+    - [x] Validate service-to-service auth (`X-Service-Token`)
+    - [x] Accept `tenant_id` in request body
+    - [x] Return valid access token (refresh if needed)
+    - [x] Response: `{ "access_token": "...", "expires_at": "..." }`
 
-- [ ] Register router in `auth/app/main.py`
+- [x] Register router in `auth/app/main.py`
   ```python
   from app.routers import oauth
   app.include_router(oauth.router)
@@ -104,7 +105,7 @@ This document outlines the implementation plan for MS365 tenant management, enab
 
 #### Environment Variables
 
-- [ ] Add to `auth/.env.example`:
+- [x] Add to `auth/.env.example`:
   ```bash
   MICROSOFT_CLIENT_ID=your_azure_app_id
   MICROSOFT_CLIENT_SECRET=your_azure_app_secret
@@ -113,21 +114,23 @@ This document outlines the implementation plan for MS365 tenant management, enab
   SERVICE_SECRET=<shared-secret-for-internal-api-calls>
   ```
 
-- [ ] Document in `auth/README.md`
+- [x] Document in `auth/README.md`
 
 #### Testing
 
-- [ ] Create Azure App Registration
+- [ ] Create Azure App Registration (pending Azure account setup)
   - [ ] Note Client ID and Client Secret
   - [ ] Configure redirect URI: `http://localhost:8000/auth/oauth/ms365/callback`
   - [ ] Grant permissions: `Mail.Read`, `Mail.Send`, `offline_access`
 
-- [ ] Test OAuth flow locally
+- [ ] Test OAuth flow locally (pending Azure setup)
   - [ ] Start auth service
   - [ ] Navigate to `http://localhost:8000/auth/oauth/ms365/authorize`
   - [ ] Complete Microsoft login
   - [ ] Verify tokens stored in `auth.tenant_tokens`
   - [ ] Verify encryption (tokens should not be plaintext)
+
+**Note**: OAuth endpoints are implemented and ready. Testing requires Azure App Registration which is deferred until deployment phase.
 
 ---
 

@@ -129,15 +129,49 @@ Security tips:
 - Validate signatures or tokens from the sender
 - Optionally add Traefik middlewares (rate limit, IP allowlist, basic auth)
 
+## OAuth & Tenant Management
+
+The Auth service manages OAuth credentials for external providers (Microsoft 365, Google Workspace). It provides:
+
+- OAuth authorization flow initiation
+- Token exchange and storage (encrypted at rest)
+- Automatic token refresh before expiry
+- Token vending to API service (internal endpoint)
+
+### MS365 OAuth Setup
+
+1. Create Azure App Registration:
+   - Azure Portal → App Registrations → New
+   - Redirect URI: `https://console.flovify.ca/auth/oauth/ms365/callback` (production) or `http://localhost:8000/auth/oauth/ms365/callback` (local)
+   - API Permissions: `Mail.Read`, `Mail.Send`, `User.Read`, `offline_access` (delegated)
+   - Grant admin consent
+
+2. Add environment variables:
+   ```
+   MICROSOFT_CLIENT_ID=your-azure-app-id
+   MICROSOFT_CLIENT_SECRET=your-azure-secret
+   MICROSOFT_REDIRECT_URI=https://console.flovify.ca/auth/oauth/ms365/callback
+   OAUTH_ENCRYPTION_KEY=<base64-32-byte-key>  # Generate: openssl rand -base64 32
+   SERVICE_SECRET=<shared-secret>  # Must match API service
+   ```
+
+### OAuth Endpoints
+
+- `GET /auth/oauth/ms365/authorize` - Start OAuth flow (requires user JWT)
+- `GET /auth/oauth/ms365/callback` - OAuth callback handler
+- `POST /auth/internal/tenant-token` - Token vending (internal, requires `X-Service-Token`)
+
+**Security**: All tokens are encrypted at rest using Fernet symmetric encryption. Only the API service can request tokens via the internal endpoint.
+
 ## User Roles
 
 The Auth service defines three user roles:
 
 - **user**: Standard user with basic access
-- **super**: Elevated user with additional business workflow privileges (NO admin console access)
+- **super-user**: Elevated user with additional business workflow privileges (NO admin console access)
 - **admin**: Full administrative access including admin console and user management
 
-**Important**: Only the `admin` role can access admin console endpoints (`/auth/admin/*`). Super users have elevated privileges for business workflows but CANNOT access user management or admin endpoints.
+**Important**: Only the `admin` role can access admin console endpoints (`/auth/admin/*`). Super-user role has elevated privileges for business workflows but CANNOT access user management or admin endpoints.
 
 ## Creating admin users
 
