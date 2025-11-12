@@ -7,7 +7,7 @@ This folder contains hand-written, idempotent SQL migrations for the `api` schem
 
 ## Files
 - `0000_init_migration_history.sql` — creates `api` schema, grants privileges to `app_root` user, and creates `api.migration_history` table for tracking applied migrations.
-- `0001_api_bootstrap.sql` — grants additional privileges and creates the minimal `api.settings` table.
+- `0001_api_bootstrap.sql` — creates the minimal `api.settings` table for API-level configuration.
  - `9999_health_check.sql` — minimal, idempotent health check for psql debugging; logs diagnostics to `api.migration_health_log` and does NOT change versions.
  - `_TEMPLATE_next_migration.sql` — starter template for future migrations (columns, tables, indexes, backfill pattern).
 
