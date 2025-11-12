@@ -10,6 +10,7 @@ This folder contains hand-written, idempotent SQL migrations for the `auth` sche
 - `0001_auth_bootstrap.sql` — creates core tables (users, tenants, settings, OTP challenges, sessions, audit logs, rate limits), creates `auth.schema_registry` and `auth.schema_registry_history` for version tracking.
 - `0002_add_email_to_users.sql` — adds `email text NULL` to `auth.users` and a case-insensitive unique index (`lower(email)`) with `WHERE email IS NOT NULL`; updates registry/history.
 - `0004_restructure_for_email_primary.sql` — makes `email` NOT NULL (primary identifier), makes `phone` nullable, adds `otp_preference` column (sms/email); updates registry/history.
+- `0005_seed_admin_user.sql` — seeds admin user (jmnaste@yahoo.ca) with SMS OTP preference; idempotent with ON CONFLICT DO NOTHING.
 - `9999_health_check.sql` — minimal, idempotent health check for psql debugging; logs diagnostics to `auth.migration_health_log` and does NOT change `auth.schema_registry`.
 
 ## How to run
@@ -27,6 +28,7 @@ docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db
 \i /auth/migrations/0001_auth_bootstrap.sql
 \i /auth/migrations/0002_add_email_to_users.sql
 \i /auth/migrations/0004_restructure_for_email_primary.sql
+\i /auth/migrations/0005_seed_admin_user.sql
 \i /auth/migrations/9999_health_check.sql
 ```
 
@@ -37,6 +39,7 @@ docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v 
 docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0001_auth_bootstrap.sql
 docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0002_add_email_to_users.sql
 docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0004_restructure_for_email_primary.sql
+docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0005_seed_admin_user.sql
 docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/9999_health_check.sql
 ```
 
@@ -59,6 +62,7 @@ docker exec -it <postgres_container_name> psql -U app_root -d app_db  # socket w
 \i /tmp/migs/0001_auth_bootstrap.sql
 \i /tmp/migs/0002_add_email_to_users.sql
 \i /tmp/migs/0004_restructure_for_email_primary.sql
+\i /tmp/migs/0005_seed_admin_user.sql
 \i /tmp/migs/9999_health_check.sql
 ```
 
@@ -76,6 +80,9 @@ docker run --rm -it --network root_default -v $(pwd)/auth/migrations:/migs:ro po
 
 docker run --rm -it --network root_default -v $(pwd)/auth/migrations:/migs:ro postgres:16-alpine \
   psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /migs/0004_restructure_for_email_primary.sql
+
+docker run --rm -it --network root_default -v $(pwd)/auth/migrations:/migs:ro postgres:16-alpine \
+  psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /migs/0005_seed_admin_user.sql
 
 docker run --rm -it --network root_default -v $(pwd)/auth/migrations:/migs:ro postgres:16-alpine \
   psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /migs/9999_health_check.sql
