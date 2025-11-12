@@ -742,6 +742,102 @@ def delete_user_admin(
     )
 
 
+class TenantResponse(BaseModel):
+    id: str
+    provider: str
+    externalTenantId: str
+    externalAccountId: str
+    displayName: str
+    metadata: dict
+    createdAt: str
+    updatedAt: str
+    lastRefreshedAt: Optional[str] = None
+
+
+class ListTenantsResponse(BaseModel):
+    tenants: list[TenantResponse]
+
+
+@app.get("/auth/tenants", response_model=ListTenantsResponse)
+def list_tenants_admin(authorization: Optional[str] = Header(None)):
+    """Admin endpoint to list all connected tenants.
+    
+    Requires JWT Bearer token with admin role.
+    Returns list of all connected external accounts (MS365, Google Workspace, etc).
+    """
+    verify_admin_jwt(authorization)
+    
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn or psycopg is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    
+    try:
+        with psycopg.connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT 
+                        t.id, 
+                        t.provider, 
+                        t.external_tenant_id,
+                        t.external_tenant_id as external_account_id,
+                        t.display_name, 
+                        t.metadata, 
+                        t.created_at, 
+                        t.updated_at,
+                        tt.last_refreshed_at
+                    FROM auth.tenants t
+                    LEFT JOIN auth.tenant_tokens tt ON t.id = tt.tenant_id
+                    ORDER BY t.created_at DESC
+                """)
+                rows = cur.fetchall()
+                
+                tenants = []
+                for row in rows:
+                    tenants.append(TenantResponse(
+                        id=str(row[0]),
+                        provider=row[1],
+                        externalTenantId=row[2],
+                        externalAccountId=row[3],
+                        displayName=row[4],
+                        metadata=row[5] or {},
+                        createdAt=row[6].isoformat(),
+                        updatedAt=row[7].isoformat(),
+                        lastRefreshedAt=row[8].isoformat() if row[8] else None
+                    ))
+                
+                return ListTenantsResponse(tenants=tenants)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
+
+
+@app.delete("/auth/tenants/{tenant_id}")
+def delete_tenant_admin(tenant_id: str, authorization: Optional[str] = Header(None)):
+    """Admin endpoint to disconnect (delete) a tenant.
+    
+    Requires JWT Bearer token with admin role.
+    Deletes the tenant and all associated tokens (CASCADE).
+    """
+    verify_admin_jwt(authorization)
+    
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn or psycopg is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    
+    try:
+        with psycopg.connect(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM auth.tenants WHERE id = %s", (tenant_id,))
+                if cur.rowcount == 0:
+                    raise HTTPException(status_code=404, detail="Tenant not found")
+            conn.commit()
+        
+        return {"success": True, "message": "Tenant disconnected successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete tenant: {str(e)}")
+
+
 @app.get("/auth/admin/settings", response_model=SystemSettings)
 def get_settings_admin(authorization: Optional[str] = Header(None)):
     """Admin endpoint to get system settings.

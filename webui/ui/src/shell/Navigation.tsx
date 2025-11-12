@@ -15,6 +15,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import WorkflowIcon from '@mui/icons-material/AccountTree';
 import PeopleIcon from '@mui/icons-material/People';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import CloudIcon from '@mui/icons-material/Cloud';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -26,6 +27,7 @@ const menuItems = [
 
 const adminMenuItems = [
   { text: 'User Management', icon: <PeopleIcon />, path: '/admin/users' },
+  { text: 'Connected Accounts', icon: <CloudIcon />, path: '/admin/tenants' },
   { text: 'System Settings', icon: <AdminPanelSettingsIcon />, path: '/admin/settings' },
 ];
 

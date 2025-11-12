@@ -16,6 +16,17 @@ Entries are appended in reverse chronological order.
 
 ---
 
+## 2025-11-12 16:55 — MS365 tenant implementation Phase 2 (Tenant Management UI)
+- Prompts:
+```
+Proceed with next steps: Phase 2
+
+Continue: "Continue to iterate?"
+```
+- Answer: Completed Phase 2 of MS365 tenant implementation plan (Tenant Management UI). Created 6 new UI components: Tenants admin page with connected accounts table and OAuth callback handling, ConnectTenantDialog for provider selection and OAuth initiation, generic ConfirmDialog for reusable confirmations, tenants API client with listTenants/startOAuthFlow/disconnectTenant functions. Updated navigation to add "Connected Accounts" menu item, added /admin/tenants route to App router. Implemented 3 BFF proxy routes (/bff/auth/tenants GET/DELETE, /bff/auth/oauth/:provider/authorize) and 2 Auth Service endpoints (GET/DELETE /auth/tenants for admin-only tenant management with tenant_tokens join). Fixed PBKDF2 import error (PBKDF2HMAC) and made encryption key initialization lazy to allow service startup without OAuth configured. UI complete and ready for end-to-end testing pending Azure App Registration.
+
+---
+
 ## 2025-11-12 14:45 — MS365 tenant implementation Phase 1 (database and OAuth endpoints)
 - Prompts:
 ```
