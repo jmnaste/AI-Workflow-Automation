@@ -17,7 +17,7 @@ This folder contains everything needed to build the API image in GitHub Actions 
 TRAEFIK_NETWORK=root_default
 # Optional if using Postgres: DSN on the private Docker network
 # For psycopg driver:
-DATABASE_URL=postgresql://app_system:YOUR_PASSWORD@postgres:5432/app_db
+DATABASE_URL=postgresql://app_root:YOUR_PASSWORD@postgres:5432/app_db
 ```
 
 4) Deploy. No ports are published and no Traefik router is created; the API runs privately.
@@ -29,7 +29,7 @@ Set the `DATABASE_URL` in the Hostinger Environment panel for this project. The 
 Common formats (psycopg):
 
 - Same Docker network (your own Postgres container):
-  - `postgresql://app_system:YOUR_PASSWORD@postgres:5432/app_db`
+  - `postgresql://app_root:YOUR_PASSWORD@postgres:5432/app_db`
   - Replace `postgres` with your Postgres service/alias name on the shared network.
   - Optional params: `?connect_timeout=3&application_name=api`
 

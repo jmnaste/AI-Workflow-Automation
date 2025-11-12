@@ -9,7 +9,17 @@ BEGIN;
 -- 1) Ensure schema
 CREATE SCHEMA IF NOT EXISTS auth;
 
--- 2) Core tables (from 20251105_000001)
+-- 2) Grant privileges to application user
+GRANT USAGE ON SCHEMA auth TO app_root;
+GRANT CREATE ON SCHEMA auth TO app_root;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA auth TO app_root;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA auth TO app_root;
+
+-- Set default privileges for future objects
+ALTER DEFAULT PRIVILEGES IN SCHEMA auth GRANT ALL PRIVILEGES ON TABLES TO app_root;
+ALTER DEFAULT PRIVILEGES IN SCHEMA auth GRANT ALL PRIVILEGES ON SEQUENCES TO app_root;
+
+-- 3) Core tables (from 20251105_000001)
 CREATE TABLE IF NOT EXISTS auth.users (
     id uuid PRIMARY KEY,
     phone_e164 text UNIQUE NOT NULL,

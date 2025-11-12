@@ -16,6 +16,17 @@ Entries are appended in reverse chronological order.
 
 ---
 
+## 2025-11-11 18:45 — Database privilege grants embedded in migration files
+- Prompts:
+```
+But souldn't privilege grant be done inside a migration? Also, I don't see a database_user in the yaml or in the environment. In auth I kind of remember user was app_root.
+
+I changed the value of DATABASE_URL env variable to have app_root as user and container deployed correctly.
+```
+- Answer: Fixed critical migration architecture issue - added GRANT statements directly to all `0000_init_migration_history.sql` files for both auth and api schemas (GRANT USAGE, CREATE, ALL PRIVILEGES ON TABLES/SEQUENCES, ALTER DEFAULT PRIVILEGES). Corrected database user documentation from `app_system` to `app_root` throughout READMEs (auth/README.md, api/README.md) and copilot-instructions.md. Migration convention now clearly documented: `0000` files MUST run first and include all privilege grants for `app_root` user. Updated migration READMEs to reflect that `0000` creates schema + grants privileges, `0001` creates application tables.
+
+---
+
 ## 2025-11-11 17:15 — User role clarification and edit user implementation
 - Prompts:
 ```

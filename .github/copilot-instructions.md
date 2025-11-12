@@ -62,9 +62,10 @@ docker exec -it <auth_container> psql -h postgres -U app_root -d app_db -f /auth
 **Why `-h postgres`**: Service containers don't have local PostgreSQL sockets; must use TCP to `postgres` service DNS name.
 
 **Migration conventions**:
-- Zero-padded sequences: `0001_`, `0002_`, etc.
+- Zero-padded sequences: `0000_init_migration_history.sql` (MUST run first), `0001_`, `0002_`, etc.
 - Idempotent: Use `IF NOT EXISTS`, `ON CONFLICT DO NOTHING`
-- Footer updates: `auth.migration_history`, `auth.schema_registry`, `auth.schema_registry_history`
+- **GRANT statements**: Always included in migration files for `app_root` user (USAGE, CREATE, ALL PRIVILEGES on schema)
+- Footer updates: `auth.migration_history`/`api.migration_history`, `auth.schema_registry`, `auth.schema_registry_history`
 - Health checks: `9999_health_check.sql` (diagnostics only, doesn't mutate versions)
 
 **Version registry** (`auth.schema_registry`):

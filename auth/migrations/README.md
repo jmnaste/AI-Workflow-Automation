@@ -6,8 +6,8 @@ This folder contains hand-written, idempotent SQL migrations for the `auth` sche
 - Uses `IF NOT EXISTS` and `ON CONFLICT` to be safe on re-runs.
 
 ## Files
-- `0000_init_migration_history.sql` — creates `auth.migration_history` used to log applied migrations.
- - `0001_auth_bootstrap.sql` — creates initial schema (users, tenants, …), seeds `auth.schema_registry` and `auth.schema_registry_history`. Historical note: this file also stamped an Alembic version table.
+- `0000_init_migration_history.sql` — creates `auth` schema, grants privileges to `app_root` user, and creates `auth.migration_history` table for tracking applied migrations.
+ - `0001_auth_bootstrap.sql` — grants additional privileges, creates core tables (users, tenants, settings, OTP challenges, sessions, etc.), seeds `auth.schema_registry` and `auth.schema_registry_history`. Historical note: this file originally stamped an Alembic version table.
  - `0002_add_email_to_users.sql` — adds `email text NULL` to `auth.users` and a case-insensitive unique index (`lower(email)`) with `WHERE email IS NOT NULL`; updates registry/history.
  - `0003_remove_alembic_artifacts.sql` — drops Alembic artifacts (version table and alembic_rev columns) to fully adopt manual SQL.
  - `9999_health_check.sql` — minimal, idempotent health check for psql debugging; logs diagnostics to `auth.migration_health_log` and does NOT change `auth.schema_registry`.

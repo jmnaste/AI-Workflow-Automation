@@ -3,8 +3,20 @@
 
 BEGIN;
 
+-- 1) Ensure schema exists
 CREATE SCHEMA IF NOT EXISTS auth;
 
+-- 2) Grant privileges to application user
+GRANT USAGE ON SCHEMA auth TO app_root;
+GRANT CREATE ON SCHEMA auth TO app_root;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA auth TO app_root;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA auth TO app_root;
+
+-- Set default privileges for future objects
+ALTER DEFAULT PRIVILEGES IN SCHEMA auth GRANT ALL PRIVILEGES ON TABLES TO app_root;
+ALTER DEFAULT PRIVILEGES IN SCHEMA auth GRANT ALL PRIVILEGES ON SEQUENCES TO app_root;
+
+-- 3) Create migration history table
 CREATE TABLE IF NOT EXISTS auth.migration_history (
     id           bigserial PRIMARY KEY,
     schema_name  text        NOT NULL,

@@ -86,7 +86,7 @@ Set the `DATABASE_URL` in the Hostinger Environment panel for this project. The 
 Common formats (psycopg):
 
 - Same Docker network (your own Postgres container):
-  - `postgresql://app_system:YOUR_PASSWORD@postgres:5432/app_db`
+  - `postgresql://app_root:YOUR_PASSWORD@postgres:5432/app_db`
   - Replace `postgres` with your Postgres service/alias name on the shared network.
   - Optional params: `?connect_timeout=3&application_name=auth`
 

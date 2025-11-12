@@ -3,10 +3,20 @@
 
 BEGIN;
 
--- Ensure schema exists
+-- 1) Ensure schema exists
 CREATE SCHEMA IF NOT EXISTS api;
 
--- Settings table: simple key/value store for API-level configuration
+-- 2) Grant privileges to application user
+GRANT USAGE ON SCHEMA api TO app_root;
+GRANT CREATE ON SCHEMA api TO app_root;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA api TO app_root;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA api TO app_root;
+
+-- Set default privileges for future objects
+ALTER DEFAULT PRIVILEGES IN SCHEMA api GRANT ALL PRIVILEGES ON TABLES TO app_root;
+ALTER DEFAULT PRIVILEGES IN SCHEMA api GRANT ALL PRIVILEGES ON SEQUENCES TO app_root;
+
+-- 3) Settings table: simple key/value store for API-level configuration
 CREATE TABLE IF NOT EXISTS api.settings (
     id uuid PRIMARY KEY,
     key text NOT NULL UNIQUE,
