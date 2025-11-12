@@ -119,11 +119,13 @@ CREATE TABLE IF NOT EXISTS auth.rate_limits (
 );
 
 -- Schema registry + history (from 20251105_000001 and 000002)
+-- NOTE: alembic_rev columns included here for historical compatibility
+--       They are removed by migration 0003_remove_alembic_artifacts.sql
 CREATE TABLE IF NOT EXISTS auth.schema_registry (
     service text PRIMARY KEY,
     semver text NOT NULL,
     ts_key bigint NOT NULL,
-    -- alembic_rev text NOT NULL,  -- deprecated; dropped by 0003
+    alembic_rev text NOT NULL DEFAULT 'manual_migration',
     applied_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -132,7 +134,7 @@ CREATE TABLE IF NOT EXISTS auth.schema_registry_history (
     service text NOT NULL,
     semver text NOT NULL,
     ts_key bigint NOT NULL,
-    -- alembic_rev text NOT NULL,  -- deprecated; dropped by 0003
+    alembic_rev text NOT NULL DEFAULT 'manual_migration',
     applied_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_schema_registry_history_service_applied_at ON auth.schema_registry_history(service, applied_at DESC);
@@ -140,19 +142,21 @@ CREATE INDEX IF NOT EXISTS idx_schema_registry_history_service_applied_at ON aut
 -- (Deprecated) Alembic version table omitted in current workflow.
 
 -- Seed pointer and history
-INSERT INTO auth.schema_registry(service, semver, ts_key)
+INSERT INTO auth.schema_registry(service, semver, ts_key, alembic_rev)
 VALUES (
     'auth',
     COALESCE(current_setting('SERVICE_SEMVER', true), '0.1.1'),
-    to_char(timezone('UTC', now()), 'YYYYMMDDHH24MI')::bigint
+    to_char(timezone('UTC', now()), 'YYYYMMDDHH24MI')::bigint,
+    'manual_migration'
 )
 ON CONFLICT (service) DO UPDATE
 SET semver = EXCLUDED.semver,
         ts_key = EXCLUDED.ts_key,
+        alembic_rev = EXCLUDED.alembic_rev,
         applied_at = now();
 
-INSERT INTO auth.schema_registry_history(service, semver, ts_key, applied_at)
-SELECT service, semver, ts_key, applied_at
+INSERT INTO auth.schema_registry_history(service, semver, ts_key, alembic_rev, applied_at)
+SELECT service, semver, ts_key, alembic_rev, applied_at
 FROM auth.schema_registry
 ON CONFLICT DO NOTHING;
 
