@@ -16,6 +16,37 @@ Entries are appended in reverse chronological order.
 
 ---
 
+## 2025-11-11 17:15 — Tenant model and service ownership clarifications for webhook architecture
+- Prompt:
+```
+Analyze this codebase to generate or update `.github/copilot-instructions.md` for guiding AI coding agents.
+
+Focus on discovering the essential knowledge that would help an AI agents be immediately productive in this codebase. Consider aspects like:
+- The "big picture" architecture that requires reading multiple files to understand - major components, service boundaries, data flows, and the "why" behind structural decisions
+- Critical developer workflows (builds, tests, debugging) especially commands that aren't obvious from file inspection alone
+- Project-specific conventions and patterns that differ from common practices
+- Integration points, external dependencies, and cross-component communication patterns
+```
+
+Then through iterative clarifications:
+```
+A) I did not well understand the webhook at the time of describing the Auth service R&R but the while the webhook is validated at account configuration it's purpose is to be used in normal operations. For this reason the api_design states that the webhook is part of the api not the auth service.
+
+B) clarify your point about 2. Database Schema Section
+
+C) Auth is for sure responsible for management of MS and Google accounts informations (credentials and ???) but Api is responsible for application behavior with regard to external systems (MS, Google, ...). Api is also responsible to implement any business logic or process that are not of the auth domain.
+
+D) Renewal shall be responsibility of Auth. Api makes request to Auth for JWT or other Auth elements.
+
+[Additional refinements on tenant model:]
+- a tenant is an account owned by the flovify instance owner in the external system
+- clear service ownership: Auth owns credentials, Api owns webhooks and business process primitive implementation  
+- a context clarification: the whole system serves as complement to n8n workflow implementation
+```
+- Answer: Created comprehensive `.github/copilot-instructions.md` with architecture, service boundaries, database strategy, deployment patterns, and gotchas. Extensively updated `api/api_design.md` with: tenant model clarification (tenant = account in external system, not org), multi-tenant support (multiple MS365/Google accounts), complete database schema section (auth.tenants, auth.tenant_tokens, api.webhook_subscriptions, api.webhook_events), service ownership (Auth manages credentials/renewal, API handles webhooks/business primitives), and system context (Flovify provides AI primitives for n8n workflows). Added tenant flow diagrams, token vending patterns, and idempotency strategies.
+
+---
+
 ## 2025-11-10 22:00 — Admin console with JWT role-based access control
 - Prompt:
 ```

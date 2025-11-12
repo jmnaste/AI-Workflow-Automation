@@ -4,10 +4,13 @@
 
 AI Workflow Automation platform with microservices architecture on Docker, deployed via GitHub Actions → GHCR → Hostinger VPS. Implements "Vibe Coding + Quality Gates" methodology: fast iteration loops with mandatory validation checkpoints.
 
+**System Context**: Flovify provides specialized AI-powered primitives (email/document processing) that complement n8n workflow orchestration. n8n handles high-level business logic routing, Flovify handles AI analysis and external system integration.
+
 **Core Architecture**: Private-by-default microservices on shared Docker network (`root_default`), fronted by Traefik reverse proxy.
 
 ```
 Browser → Traefik (TLS) → WebUI (Nginx + BFF) → Private network → Auth / API / Postgres
+n8n Workflows → API Service (AI primitives, webhook processing)
 ```
 
 ## Service Boundaries & Data Ownership
@@ -16,20 +19,50 @@ Browser → Traefik (TLS) → WebUI (Nginx + BFF) → Private network → Auth /
 
 | Service | Port | Schema | Responsibilities | Database Access |
 |---------|------|--------|------------------|-----------------|
-| **Auth** | 8000 | `auth.*` | OTP authentication, JWT issuance, user identity, OAuth webhooks | Direct to `auth` schema |
-| **API** | 8000 | `api.*` | Business logic, LangGraph workflows, metrics | Direct to `api` schema |
+| **Auth** | 8000 | `auth.*` | OTP authentication, JWT issuance, user identity, **tenant credentials**, OAuth token management | Direct to `auth` schema |
+| **API** | 8000 | `api.*` | **Webhooks**, business logic, LangGraph workflows, metrics | Direct to `api` schema |
 | **WebUI BFF** | 3001 | None | Thin proxy, JWT cookie management | **No database access** |
 | **Postgres** | 5432 | All schemas | Data persistence | N/A (is the database) |
 | **NetShell** | - | None | Network debugging toolbox | None |
+
+### Tenant Model
+
+**Tenant = Account owned by Flovify instance owner in external system**: A "tenant" represents a specific account (email, user, workspace) that the Flovify instance owner has in an external system. One Flovify installation can connect to multiple accounts per provider.
+
+**Example**: Flovify instance owner might have:
+- 2 MS365 accounts (`john@acme.com`, `john@acme-retail.com`)
+- 3 Google Workspace accounts (different email addresses)
+- Future: Salesforce user accounts, Slack workspaces
+
+**System Context**: Flovify complements n8n workflow implementation
+- n8n = High-level workflow orchestration
+- Flovify = Specialized AI-powered email/document processing primitives
+- Integration: n8n workflows call Flovify API endpoints
+
+**Tenant data flow**:
+1. Webhook arrives at API → includes `subscription_id`
+2. API looks up `tenant_id` from `api.webhook_subscriptions`
+3. API worker requests OAuth token from Auth: "Token for tenant X"
+4. Auth returns valid token from `auth.tenant_tokens` (refreshing if needed)
+5. Worker uses token to call external API (MS Graph, Gmail)
+6. Worker processes data, stores in `api.*` schema with `tenant_id` reference
 
 **Auth Service** handles:
 - OTP generation/validation (SMS via Twilio, Email via SMTP)
 - JWT signing and validation
 - User management (admin endpoints with `X-Admin-Token`)
-- OAuth callbacks for Microsoft 365 / Google Workspace on subdomain `webhooks.flovify.ca`
+- **Tenant management**: External system instances (MS365, Google Workspace)
+- **OAuth token storage**: Encrypted credentials per tenant (`auth.tenant_tokens`)
+- **Token refresh**: Automatic renewal of expired OAuth tokens
+- **Subscription renewal**: Proactive renewal of MS365/Google webhook subscriptions
 
 **API Service** handles:
-- LangGraph workflow execution
+- **Webhook endpoints**: Receive MS365/Google notifications (`/api/ms365/webhook`, `/api/googlews/webhook`)
+- **Subscription tracking**: Metadata for active webhooks (`api.webhook_subscriptions`)
+- **Business process primitives**: Email parsing, document extraction, AI analysis
+- **LangGraph workflows**: AI-powered processing and reasoning
+- **n8n integration**: Exposes APIs for n8n workflow consumption
+- **Token requests**: Requests OAuth tokens from Auth Service per tenant
 - Business data (workflows, runs, agents)
 - Startup gating: checks `auth.schema_registry.semver` against `API_MIN_AUTH_VERSION` env var
 
