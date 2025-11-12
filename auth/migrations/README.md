@@ -7,10 +7,10 @@ This folder contains hand-written, idempotent SQL migrations for the `auth` sche
 
 ## Files
 - `0000_init_migration_history.sql` — creates `auth` schema, grants privileges to `app_root` user, and creates `auth.migration_history` table for tracking applied migrations.
- - `0001_auth_bootstrap.sql` — grants additional privileges, creates core tables (users, tenants, settings, OTP challenges, sessions, etc.), seeds `auth.schema_registry` and `auth.schema_registry_history`. Historical note: this file originally stamped an Alembic version table.
- - `0002_add_email_to_users.sql` — adds `email text NULL` to `auth.users` and a case-insensitive unique index (`lower(email)`) with `WHERE email IS NOT NULL`; updates registry/history.
- - `0003_remove_alembic_artifacts.sql` — drops Alembic artifacts (version table and alembic_rev columns) to fully adopt manual SQL.
- - `9999_health_check.sql` — minimal, idempotent health check for psql debugging; logs diagnostics to `auth.migration_health_log` and does NOT change `auth.schema_registry`.
+- `0001_auth_bootstrap.sql` — creates core tables (users, tenants, settings, OTP challenges, sessions, audit logs, rate limits), creates `auth.schema_registry` and `auth.schema_registry_history` for version tracking.
+- `0002_add_email_to_users.sql` — adds `email text NULL` to `auth.users` and a case-insensitive unique index (`lower(email)`) with `WHERE email IS NOT NULL`; updates registry/history.
+- `0004_restructure_for_email_primary.sql` — makes `email` NOT NULL (primary identifier), makes `phone` nullable, adds `otp_preference` column (sms/email); updates registry/history.
+- `9999_health_check.sql` — minimal, idempotent health check for psql debugging; logs diagnostics to `auth.migration_health_log` and does NOT change `auth.schema_registry`.
 
 ## How to run
 
@@ -26,7 +26,7 @@ docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db
 \i /auth/migrations/0000_init_migration_history.sql
 \i /auth/migrations/0001_auth_bootstrap.sql
 \i /auth/migrations/0002_add_email_to_users.sql
-\i /auth/migrations/0003_remove_alembic_artifacts.sql
+\i /auth/migrations/0004_restructure_for_email_primary.sql
 \i /auth/migrations/9999_health_check.sql
 ```
 
@@ -36,7 +36,7 @@ Option A2: one-shot psql invocation from the auth container (non-interactive):
 docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0000_init_migration_history.sql
 docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0001_auth_bootstrap.sql
 docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0002_add_email_to_users.sql
-docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0003_remove_alembic_artifacts.sql
+docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0004_restructure_for_email_primary.sql
 docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/9999_health_check.sql
 ```
 
@@ -58,7 +58,7 @@ docker exec -it <postgres_container_name> psql -U app_root -d app_db  # socket w
 \i /tmp/migs/0000_init_migration_history.sql
 \i /tmp/migs/0001_auth_bootstrap.sql
 \i /tmp/migs/0002_add_email_to_users.sql
-\i /tmp/migs/0003_remove_alembic_artifacts.sql
+\i /tmp/migs/0004_restructure_for_email_primary.sql
 \i /tmp/migs/9999_health_check.sql
 ```
 
@@ -75,7 +75,7 @@ docker run --rm -it --network root_default -v $(pwd)/auth/migrations:/migs:ro po
   psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /migs/0002_add_email_to_users.sql
 
 docker run --rm -it --network root_default -v $(pwd)/auth/migrations:/migs:ro postgres:16-alpine \
-  psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /migs/0003_remove_alembic_artifacts.sql
+  psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /migs/0004_restructure_for_email_primary.sql
 
 docker run --rm -it --network root_default -v $(pwd)/auth/migrations:/migs:ro postgres:16-alpine \
   psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /migs/9999_health_check.sql

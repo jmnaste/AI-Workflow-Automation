@@ -1,7 +1,5 @@
--- Manual bootstrap for Auth schema (historical: originally mirrored early Alembic revisions)
--- This file intentionally keeps original Alembic-related artifacts only as history.
--- NOTE: Alembic objects (alembic_version_auth table and alembic_rev columns) are
---       removed by 0003_remove_alembic_artifacts.sql in current deployments.
+-- Manual bootstrap for Auth schema
+-- Creates core auth tables: users, tenants, settings, OTP challenges, sessions, audit logs
 -- Idempotent: uses IF NOT EXISTS and ON CONFLICT where applicable
 
 BEGIN;
@@ -118,45 +116,39 @@ CREATE TABLE IF NOT EXISTS auth.rate_limits (
     UNIQUE (subject_type, subject, window_start, window_seconds)
 );
 
--- Schema registry + history (from 20251105_000001 and 000002)
--- NOTE: alembic_rev columns included here for historical compatibility
---       They are removed by migration 0003_remove_alembic_artifacts.sql
+-- Schema registry: tracks schema versions for each service
 CREATE TABLE IF NOT EXISTS auth.schema_registry (
     service text PRIMARY KEY,
     semver text NOT NULL,
     ts_key bigint NOT NULL,
-    alembic_rev text NOT NULL DEFAULT 'manual_migration',
     applied_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- Schema registry history: audit trail of all schema version changes
 CREATE TABLE IF NOT EXISTS auth.schema_registry_history (
     id bigserial PRIMARY KEY,
     service text NOT NULL,
     semver text NOT NULL,
     ts_key bigint NOT NULL,
-    alembic_rev text NOT NULL DEFAULT 'manual_migration',
     applied_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_schema_registry_history_service_applied_at ON auth.schema_registry_history(service, applied_at DESC);
 
--- (Deprecated) Alembic version table omitted in current workflow.
-
--- Seed pointer and history
-INSERT INTO auth.schema_registry(service, semver, ts_key, alembic_rev)
+-- Seed initial schema version
+INSERT INTO auth.schema_registry(service, semver, ts_key)
 VALUES (
     'auth',
     COALESCE(current_setting('SERVICE_SEMVER', true), '0.1.1'),
-    to_char(timezone('UTC', now()), 'YYYYMMDDHH24MI')::bigint,
-    'manual_migration'
+    to_char(timezone('UTC', now()), 'YYYYMMDDHH24MI')::bigint
 )
 ON CONFLICT (service) DO UPDATE
 SET semver = EXCLUDED.semver,
         ts_key = EXCLUDED.ts_key,
-        alembic_rev = EXCLUDED.alembic_rev,
         applied_at = now();
 
-INSERT INTO auth.schema_registry_history(service, semver, ts_key, alembic_rev, applied_at)
-SELECT service, semver, ts_key, alembic_rev, applied_at
+-- Record initial version in history
+INSERT INTO auth.schema_registry_history(service, semver, ts_key, applied_at)
+SELECT service, semver, ts_key, applied_at
 FROM auth.schema_registry
 ON CONFLICT DO NOTHING;
 
