@@ -4,7 +4,7 @@ export interface AdminUser {
   id: string;
   email: string;
   phone?: string;
-  role: 'user' | 'admin' | 'super';
+  role: 'user' | 'admin' | 'super-user';
   isActive: boolean;
   verifiedAt?: string;
   createdAt?: string;
@@ -22,7 +22,7 @@ export interface UpdateUserRequest {
   email?: string;
   phone?: string;
   preference?: 'sms' | 'email' | 'none';
-  role?: 'user' | 'admin' | 'super';
+  role?: 'user' | 'admin' | 'super-user';
   isActive?: boolean;
 }
 
@@ -72,7 +72,7 @@ export async function createUser(userData: {
   email: string;
   phone?: string;
   preference?: 'sms' | 'email';
-  role?: 'user' | 'admin' | 'super';
+  role?: 'user' | 'admin' | 'super-user';
 }): Promise<UpdateUserResponse> {
   const response = await fetch('/bff/admin/users', {
     method: 'POST',

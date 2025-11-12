@@ -202,7 +202,7 @@ X-Admin-Token: <admin-token-from-env>
   "email": "admin@example.com",
   "phone": "+1234567890",
   "preference": "sms",
-  "role": "admin"  // "user", "admin", or "super"
+  "role": "admin"  // "user", "admin", or "super-user"
 }
 ```
 
@@ -257,7 +257,7 @@ The Auth Service creates the following tables in the `auth` schema:
 | `email` | VARCHAR(255) | UNIQUE NOT NULL (primary identifier), CHECK (lowercase) |
 | `phone` | VARCHAR(50) | NULLABLE (optional, E.164 format) |
 | `otp_preference` | VARCHAR(10) | NULLABLE, CHECK IN ('sms', 'email') |
-| `role` | VARCHAR(20) | NOT NULL DEFAULT 'user', CHECK IN ('user', 'admin', 'super') |
+| `role` | VARCHAR(20) | NOT NULL DEFAULT 'user', CHECK IN ('user', 'admin', 'super-user') |
 | `is_active` | BOOLEAN | NOT NULL DEFAULT true |
 | `verified_at` | TIMESTAMPTZ | NULLABLE (set on first OTP verification) |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |

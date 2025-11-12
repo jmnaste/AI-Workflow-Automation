@@ -38,7 +38,8 @@ export default function Navigation({ expanded }: NavigationProps) {
   const location = useLocation();
   const { user } = useAuth();
   
-  const isAdmin = user?.role === 'admin' || user?.role === 'super';
+  // Only show Admin nav item for admin users (super users do NOT have admin console access)
+  const isAdmin = user?.role === 'admin';
 
   const renderMenuItem = (item: typeof menuItems[0]) => {
     const isSelected = location.pathname === item.path;

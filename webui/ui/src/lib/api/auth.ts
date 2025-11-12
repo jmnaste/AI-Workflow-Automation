@@ -23,7 +23,7 @@ export interface UserProfile {
   email: string;
   phone: string;
   otpPreference: 'sms' | 'email';
-  role: 'user' | 'admin' | 'super';
+  role: 'user' | 'admin' | 'super-user';
   isActive: boolean;
   verifiedAt: string | null;
   createdAt: string;

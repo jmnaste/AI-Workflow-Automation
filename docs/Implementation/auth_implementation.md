@@ -81,7 +81,7 @@ Implement passwordless authentication using OTP (One-Time Password) delivered vi
   - [x] `email` (VARCHAR, unique, lowercase, **NOT NULL** - primary identifier)
   - [x] `phone` (VARCHAR, **nullable** - optional, E.164 format)
   - [x] `otp_preference` (VARCHAR: 'sms' or 'email', **nullable**)
-  - [x] `role` (VARCHAR: 'user', 'admin', 'super', default 'user')
+  - [x] `role` (VARCHAR: 'user', 'admin', 'super-user', default 'user')
   - [x] `is_active` (BOOLEAN, default true)
   - [x] `verified_at` (TIMESTAMPTZ, nullable - set on first OTP verification)
   - [x] `created_at`, `last_login_at`, `updated_at` (TIMESTAMPTZ)
@@ -161,7 +161,7 @@ Implement passwordless authentication using OTP (One-Time Password) delivered vi
     - [x] Return user profile from database (includes role, isActive, verifiedAt)
   - [x] `POST /auth/admin/create-user`
     - [x] Validate X-Admin-Token header
-    - [x] Create user with email, phone, preference, **role** (user/admin/super)
+    - [x] Create user with email, phone, preference, **role** (user/admin/super-user)
     - [x] Return user profile
   - [x] `POST /auth/logout`
     - [x] Return success (client clears cookie)

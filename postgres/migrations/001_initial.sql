@@ -10,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto"; -- for gen_random_uuid()
 CREATE TABLE IF NOT EXISTS users (
     id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     phone_e164         text UNIQUE NOT NULL,
-    role               text NOT NULL DEFAULT 'user' CHECK (role IN ('user','admin','super')),
+    role               text NOT NULL DEFAULT 'user' CHECK (role IN ('user','admin','super-user')),
     is_active          boolean NOT NULL DEFAULT true,
     verified_at        timestamptz NULL,
     last_login_at      timestamptz NULL,

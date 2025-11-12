@@ -28,7 +28,7 @@ interface CreateUserDialogProps {
     email: string;
     phone?: string;
     preference?: 'sms' | 'email';
-    role: 'user' | 'admin' | 'super';
+    role: 'user' | 'admin' | 'super-user';
   }) => Promise<void>;
 }
 
@@ -36,7 +36,7 @@ export default function CreateUserDialog({ open, onClose, onCreate }: CreateUser
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [preference, setPreference] = useState<'sms' | 'email' | ''>('');
-  const [role, setRole] = useState<'user' | 'admin' | 'super'>('user');
+  const [role, setRole] = useState<'user' | 'admin' | 'super-user'>('user');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -121,11 +121,11 @@ export default function CreateUserDialog({ open, onClose, onCreate }: CreateUser
               <Select
                 value={role}
                 label="Role"
-                onChange={(e) => setRole(e.target.value as 'user' | 'admin' | 'super')}
+                onChange={(e) => setRole(e.target.value as 'user' | 'admin' | 'super-user')}
               >
                 <MenuItem value="user">User</MenuItem>
                 <MenuItem value="admin">Admin</MenuItem>
-                <MenuItem value="super">Super Admin</MenuItem>
+                <MenuItem value="super-user">Super User</MenuItem>
               </Select>
             </FormControl>
           </Grid>

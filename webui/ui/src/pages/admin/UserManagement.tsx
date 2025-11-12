@@ -67,7 +67,7 @@ export default function UserManagement() {
     email: string;
     phone?: string;
     preference?: 'sms' | 'email';
-    role: 'user' | 'admin' | 'super';
+    role: 'user' | 'admin' | 'super-user';
   }) => {
     try {
       await createUser(userData);
@@ -114,7 +114,7 @@ export default function UserManagement() {
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'super':
+      case 'super-user':
         return 'error';
       case 'admin':
         return 'warning';

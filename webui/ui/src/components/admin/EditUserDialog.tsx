@@ -32,7 +32,7 @@ interface EditUserDialogProps {
     email?: string;
     phone?: string;
     preference?: 'sms' | 'email' | 'none';
-    role?: 'user' | 'admin' | 'super';
+    role?: 'user' | 'admin' | 'super-user';
     isActive?: boolean;
   }) => Promise<void>;
 }
@@ -41,7 +41,7 @@ export default function EditUserDialog({ open, user, onClose, onUpdate }: EditUs
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [preference, setPreference] = useState<'sms' | 'email' | 'none' | ''>('');
-  const [role, setRole] = useState<'user' | 'admin' | 'super'>('user');
+  const [role, setRole] = useState<'user' | 'admin' | 'super-user'>('user');
   const [isActive, setIsActive] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -149,7 +149,7 @@ export default function EditUserDialog({ open, user, onClose, onUpdate }: EditUs
               >
                 <MenuItem value="user">User</MenuItem>
                 <MenuItem value="admin">Admin</MenuItem>
-                <MenuItem value="super">Super Admin</MenuItem>
+                <MenuItem value="super-user">Super User</MenuItem>
               </Select>
             </FormControl>
           </Grid>

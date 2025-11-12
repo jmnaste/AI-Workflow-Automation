@@ -58,10 +58,10 @@ n8n Workflows → API Service (AI primitives, webhook processing)
 
 **User Roles** (defined in Auth service):
 - **user**: Standard user with basic access
-- **super**: Elevated user with additional business workflow privileges (NO admin console access)
+- **super-user**: Elevated user with additional business workflow privileges (NO admin console access)
 - **admin**: Full administrative access including admin console and user management
 
-**Critical**: Only `admin` role can access admin console (`/auth/admin/*`, `/bff/admin/*`). Super users have elevated business privileges but CANNOT access user management or admin endpoints.
+**Critical**: Only `admin` role can access admin console (`/auth/admin/*`, `/bff/admin/*`). Super-user role has elevated business privileges but CANNOT access user management or admin endpoints.
 
 **API Service** handles:
 - **Webhook endpoints**: Receive MS365/Google notifications (`/api/ms365/webhook`, `/api/googlews/webhook`)

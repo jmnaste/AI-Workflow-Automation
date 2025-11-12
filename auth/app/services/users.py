@@ -211,7 +211,7 @@ def list_all_users() -> list[User]:
 
 def update_user_role(user_id: str, role: str) -> User:
     """Update user role (admin function)."""
-    if role not in ('user', 'admin', 'super'):
+    if role not in ('user', 'admin', 'super-user'):
         raise ValueError(f"Invalid role: {role}")
     
     with get_db_connection() as conn:
