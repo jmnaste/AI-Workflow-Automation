@@ -16,6 +16,35 @@ Entries are appended in reverse chronological order.
 
 ---
 
+## 2025-11-12 14:45 — MS365 tenant implementation Phase 1 (database and OAuth endpoints)
+- Prompts:
+```
+I just committed the plan and now we are ready to go. Please proceed with the first thing in the plan.
+
+Proceed with next step
+```
+- Answer: Completed Phase 1 of MS365 tenant implementation plan. Phase 1.1: created database migration 0006_tenant_tokens.sql with encrypted token storage, updated schema to version 0.1.3, applied and verified locally. Phase 1.2: implemented OAuth service layer (oauth.py) with Fernet encryption, MS365 OAuth flow, auto-refresh token vending, and CSRF protection; created OAuth router with 3 endpoints (authorize, callback, internal token vending); added dependencies (httpx, cryptography); created configuration template and documentation. Ready for Phase 2 (Tenant Management UI) pending Azure App Registration.
+
+## 2025-11-12 14:36 — MS365 tenant implementation planning
+- Prompts:
+```
+Now next is to implement ms365 tenant, can you elaborate a simple plan?
+
+Is that plan in line with analysis made into api_design.md?
+
+Good, please create a document for saving the plan in a .md file in docs folder
+```
+- Answer: Created comprehensive 5-phase MS365 implementation plan (docs/Implementation/ms365_tenant_implementation.md) aligned with api_design.md architecture decisions. Plan includes: Phase 1 (Database & Auth Service OAuth foundation), Phase 2 (Tenant Management UI), Phase 3 (API Service webhook subscriptions), Phase 4 (Webhook processing with workers), Phase 5 (Testing & deployment). Each phase includes detailed checklist with specific file paths, code snippets, and verification steps for tracking implementation progress.
+
+## 2025-11-12 13:20 — Role name clarification from 'super' to 'super-user'
+- Prompt:
+```
+roles are: user, super, admin. Now if the name super is not clear enough I propose we change it to super-user
+```
+- Answer: Changed role name from 'super' to 'super-user' across entire codebase for clarity (14 files updated). Updated database migrations (0001, 0004, postgres/001_initial.sql), backend code (auth/services/users.py), BFF TypeScript (jwt.ts), all frontend UI components (EditUserDialog, CreateUserDialog, UserManagement, AdminLayout, Navigation), and documentation files (copilot-instructions.md, AUTH_CONFIGURATION.md, prompt_log.md, auth_implementation.md). UI labels use "Super User" (with space) for better readability while code uses 'super-user'.
+
+---
+
 ## 2025-11-11 18:45 — Database privilege grants embedded in migration files
 - Prompts:
 ```
