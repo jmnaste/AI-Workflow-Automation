@@ -15,9 +15,12 @@ import {
   Alert,
   Chip,
   Stack,
+  IconButton,
+  InputAdornment,
 } from '@mui/material';
 import KeyIcon from '@mui/icons-material/Key';
 import LinkIcon from '@mui/icons-material/Link';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { createCredential, startOAuthFlow, CreateCredentialRequest } from '../../lib/api/credentials';
 
 interface CreateCredentialDialogProps {
@@ -36,6 +39,7 @@ export default function CreateCredentialDialog({ open, onClose, onSuccess }: Cre
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveAndConnect, setSaveAndConnect] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   // Set default values when provider changes
   const handleProviderChange = (newProvider: 'ms365' | 'google_workspace') => {
@@ -44,6 +48,28 @@ export default function CreateCredentialDialog({ open, onClose, onSuccess }: Cre
     // Set default redirect URI
     const baseUrl = window.location.origin;
     setRedirectUri(`${baseUrl}/bff/auth/oauth/callback`);
+  };
+
+  // Generate webhook endpoint URL based on provider
+  const getWebhookEndpoint = () => {
+    const baseUrl = window.location.origin;
+    if (provider === 'ms365') {
+      return `${baseUrl}/bff/auth/webhook/ms365`;
+    } else if (provider === 'google_workspace') {
+      return `${baseUrl}/bff/auth/webhook/google`;
+    }
+    return '';
+  };
+
+  // Copy webhook endpoint to clipboard
+  const handleCopyWebhook = async () => {
+    try {
+      await navigator.clipboard.writeText(getWebhookEndpoint());
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy webhook endpoint:', err);
+    }
   };
 
   const validateForm = () => {
@@ -203,6 +229,31 @@ export default function CreateCredentialDialog({ open, onClose, onSuccess }: Cre
               onChange={(e) => setRedirectUri(e.target.value)}
               disabled={loading}
               helperText="OAuth callback URL (must match provider configuration)"
+            />
+
+            {/* Webhook Endpoint (read-only with copy button) */}
+            <TextField
+              fullWidth
+              label="Webhook Endpoint"
+              value={getWebhookEndpoint()}
+              disabled={loading}
+              helperText="Use this URL for webhook subscriptions in provider console"
+              InputProps={{
+                readOnly: true,
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={handleCopyWebhook}
+                      edge="end"
+                      size="small"
+                      color={copySuccess ? 'success' : 'default'}
+                      title="Copy webhook endpoint"
+                    >
+                      <ContentCopyIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
 
             <Alert severity="info" icon={<KeyIcon />}>
