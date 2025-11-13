@@ -72,9 +72,14 @@ export default function Credentials() {
     }
   };
 
-  const handleConnect = (credential: Credential) => {
-    // Start OAuth flow
-    startOAuthFlow(credential.id);
+  const handleConnect = async (credential: Credential) => {
+    try {
+      // Start OAuth flow (will redirect to provider)
+      await startOAuthFlow(credential.id);
+      // Note: If successful, page will redirect and code below won't run
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start OAuth flow');
+    }
   };
 
   const handleDeleteClick = (credential: Credential) => {

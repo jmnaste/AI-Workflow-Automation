@@ -34,6 +34,8 @@ services:
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASS=${SMTP_PASS:-}
       - SMTP_FROM=${SMTP_FROM:-noreply@flovify.ca}
+      # OAuth Encryption Key (required for credential management)
+      - OAUTH_ENCRYPTION_KEY=${OAUTH_ENCRYPTION_KEY}
     labels:
       # Keep private by default; set AUTH_PUBLIC=true to expose webhook route(s)
       - traefik.enable=${AUTH_PUBLIC:-false}

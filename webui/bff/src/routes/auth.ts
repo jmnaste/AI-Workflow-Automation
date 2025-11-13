@@ -287,8 +287,8 @@ router.delete('/credentials/:credentialId', async (req, res) => {
 
 /**
  * GET /bff/auth/oauth/authorize?credential_id=xxx
- * Start OAuth flow for a specific credential
- * Redirects to Auth Service which redirects to OAuth provider
+ * Get OAuth authorization URL for a specific credential
+ * Returns JSON for frontend to handle redirect
  */
 router.get('/oauth/authorize', async (req, res) => {
   try {
@@ -299,14 +299,32 @@ router.get('/oauth/authorize', async (req, res) => {
       return;
     }
     
-    // Redirect to Auth Service OAuth endpoint
+    // Proxy to Auth Service to get OAuth authorization URL
     const authUrl = `${AUTH_SERVICE_URL}/auth/oauth/authorize?credential_id=${credentialId}`;
     
-    req.log.info({ credentialId }, 'Starting OAuth flow for credential');
-    res.redirect(authUrl);
+    req.log.info({ credentialId }, 'Getting OAuth authorization URL for credential');
+    
+    const response = await fetch(authUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      req.log.error({ status: response.status, error }, 'Failed to get authorization URL from Auth service');
+      res.status(response.status).json({ error: 'Failed to get authorization URL' });
+      return;
+    }
+    
+    const data = await response.json();
+    
+    // Return the authorization URL to frontend
+    res.json(data);
     
   } catch (error) {
-    req.log.error({ error }, 'Failed to start OAuth flow');
+    req.log.error({ error }, 'Failed to get OAuth authorization URL');
     res.status(500).json({ error: 'Failed to connect to authentication service' });
   }
 });

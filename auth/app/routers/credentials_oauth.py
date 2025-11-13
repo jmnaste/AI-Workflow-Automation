@@ -17,14 +17,14 @@ router = APIRouter(prefix="/auth/oauth", tags=["oauth"])
 
 
 @router.get("/authorize")
-async def authorize_oauth(credential_id: str, request: Request):
+async def authorize_oauth(credential_id: str, request: Request) -> Dict[str, str]:
     """
-    Initiate OAuth flow for a specific credential.
+    Get OAuth authorization URL for a specific credential.
     
     Query params:
     - credential_id: UUID of the credential to connect
     
-    Redirects to provider's authorization URL with generated state.
+    Returns JSON with authorization_url that frontend should redirect to.
     """
     try:
         cred_uuid = UUID(credential_id)
@@ -48,12 +48,12 @@ async def authorize_oauth(credential_id: str, request: Request):
                 raise HTTPException(status_code=404, detail="Credential not found")
             
             credential = {
-                "id": str(row[0]),
-                "provider": row[1],
-                "client_id": row[2],
-                "redirect_uri": row[3],
-                "authorization_url": row[4],
-                "scopes": row[5]
+                "id": str(row['id']),
+                "provider": row['provider'],
+                "client_id": row['client_id'],
+                "redirect_uri": row['redirect_uri'],
+                "authorization_url": row['authorization_url'],
+                "scopes": row['scopes']
             }
     
     # Generate state for CSRF protection
@@ -82,7 +82,11 @@ async def authorize_oauth(credential_id: str, request: Request):
     query_string = "&".join([f"{k}={httpx.QueryParams({k: v})[k]}" for k, v in params.items()])
     auth_url = f"{credential['authorization_url']}?{query_string}"
     
-    return RedirectResponse(url=auth_url)
+    # Return JSON with authorization URL for frontend to redirect to
+    return {
+        "authorization_url": auth_url,
+        "provider": credential["provider"]
+    }
 
 
 @router.get("/callback")
@@ -124,13 +128,13 @@ async def oauth_callback(code: str = None, state: str = None, error: str = None,
                     raise HTTPException(status_code=404, detail="Credential not found")
                 
                 credential = {
-                    "id": str(row[0]),
-                    "provider": row[1],
-                    "client_id": row[2],
-                    "client_secret": decrypt_token(row[3]),
-                    "redirect_uri": row[4],
-                    "token_url": row[5],
-                    "scopes": row[6]
+                    "id": str(row['id']),
+                    "provider": row['provider'],
+                    "client_id": row['client_id'],
+                    "client_secret": decrypt_token(row['encrypted_client_secret']),
+                    "redirect_uri": row['redirect_uri'],
+                    "token_url": row['token_url'],
+                    "scopes": row['scopes']
                 }
         
         # Exchange code for tokens
@@ -311,15 +315,15 @@ async def get_credential_token_internal(request: Request) -> Dict[str, Any]:
             if not row:
                 raise HTTPException(status_code=404, detail="Connected credential not found")
             
-            cred_id = row[0]
-            provider = row[1]
-            client_id = row[2]
-            client_secret = decrypt_token(row[3])
-            token_url = row[4]
-            encrypted_access = row[5]
-            encrypted_refresh = row[6]
-            expires_at = row[7]
-            scopes = row[8]
+            cred_id = row['id']
+            provider = row['provider']
+            client_id = row['client_id']
+            client_secret = decrypt_token(row['encrypted_client_secret'])
+            token_url = row['token_url']
+            encrypted_access = row['encrypted_access_token']
+            encrypted_refresh = row['encrypted_refresh_token']
+            expires_at = row['expires_at']
+            scopes = row['scopes']
     
     # Check if we have tokens
     if not encrypted_access:

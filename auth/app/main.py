@@ -796,15 +796,15 @@ def list_tenants_admin(authorization: Optional[str] = Header(None)):
                 tenants = []
                 for row in rows:
                     tenants.append(TenantResponse(
-                        id=str(row[0]),
-                        provider=row[1],
-                        externalTenantId=row[2],
-                        externalAccountId=row[3],
-                        displayName=row[4],
-                        metadata=row[5] or {},
-                        createdAt=row[6].isoformat(),
-                        updatedAt=row[7].isoformat(),
-                        lastRefreshedAt=row[8].isoformat() if row[8] else None
+                        id=str(row['id']),
+                        provider=row['provider'],
+                        externalTenantId=row['external_tenant_id'],
+                        externalAccountId=row['external_account_id'],
+                        displayName=row['display_name'],
+                        metadata=row['metadata'] or {},
+                        createdAt=row['created_at'].isoformat(),
+                        updatedAt=row['updated_at'].isoformat(),
+                        lastRefreshedAt=row['last_refreshed_at'].isoformat() if row['last_refreshed_at'] else None
                     ))
                 
                 return ListTenantsResponse(tenants=tenants)

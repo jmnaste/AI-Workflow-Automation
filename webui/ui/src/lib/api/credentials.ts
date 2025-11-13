@@ -131,9 +131,28 @@ export async function deleteCredential(credentialId: string): Promise<void> {
 
 /**
  * Start OAuth flow for a specific credential
- * Redirects to provider's authorization page
+ * Gets authorization URL from backend and redirects to provider's authorization page
  */
-export function startOAuthFlow(credentialId: string): void {
-  // Redirect to OAuth authorization endpoint
-  window.location.href = `/bff/auth/oauth/authorize?credential_id=${credentialId}`;
+export async function startOAuthFlow(credentialId: string): Promise<void> {
+  try {
+    const response = await fetch(`/bff/auth/oauth/authorize?credential_id=${credentialId}`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get authorization URL: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    // Redirect to OAuth provider (Microsoft/Google)
+    window.location.href = data.authorization_url;
+  } catch (error) {
+    console.error('Failed to start OAuth flow:', error);
+    throw error;
+  }
 }

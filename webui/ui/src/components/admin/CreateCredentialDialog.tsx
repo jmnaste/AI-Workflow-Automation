@@ -35,7 +35,11 @@ export default function CreateCredentialDialog({ open, onClose, onSuccess }: Cre
   const [displayName, setDisplayName] = useState('');
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
-  const [redirectUri, setRedirectUri] = useState('');
+  const [redirectUri, setRedirectUri] = useState(() => {
+    // Initialize with default redirect URI
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/bff/auth/oauth/callback`;
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveAndConnect, setSaveAndConnect] = useState(false);
@@ -107,8 +111,9 @@ export default function CreateCredentialDialog({ open, onClose, onSuccess }: Cre
       const credential = await createCredential(request);
 
       if (shouldConnect) {
-        // Redirect to OAuth flow
-        startOAuthFlow(credential.id);
+        // Start OAuth flow (will redirect to provider)
+        await startOAuthFlow(credential.id);
+        // Note: If startOAuthFlow succeeds, page will redirect and code below won't run
       } else {
         // Just created, close dialog
         handleClose();

@@ -278,10 +278,10 @@ async def refresh_tenant_token(tenant_id: UUID) -> str:
             )
             row = cur.fetchone()
             
-            if not row or not row[0]:
+            if not row or not row['encrypted_refresh_token']:
                 raise ValueError(f"No refresh token found for tenant {tenant_id}")
             
-            refresh_token = decrypt_token(row[0])
+            refresh_token = decrypt_token(row['encrypted_refresh_token'])
             new_tokens = await refresh_access_token(refresh_token)
             
             # Store the new tokens
@@ -306,7 +306,7 @@ def create_or_update_tenant(provider: str, external_account_id: str,
             row = cur.fetchone()
             
             if row:
-                tenant_id = row[0]
+                tenant_id = row['id']
                 # Update display name
                 cur.execute(
                     """

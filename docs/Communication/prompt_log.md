@@ -16,6 +16,19 @@ Entries are appended in reverse chronological order.
 
 ---
 
+## 2025-01-13 15:30 — Psycopg3 dict_row indexing fix & OAuth flow architecture refactoring
+- Prompts:
+```
+Two things: 1. Before connecting I have create the credential and saved it, the after connection failure the credential has disappeared 2. I recreated it and now just saving produces an error 500
+
+You should have ask me about that decision to redirect rather than getting the correct and then send to url obtained by Auth. We have to discuss because I am asking me if this is a bad separation of concerns?
+
+Yes please refactor
+```
+- Answer: Fixed systematic psycopg3 dict_row incompatibility across Auth service (9+ functions in 5 files) - changed all numeric row indexing (row[0]) to column name access (row['id']). User questioned architectural decision when OAuth redirect used internal Docker address, leading to complete refactoring: Auth service now returns JSON with authorization_url instead of HTTP redirect, BFF acts as transparent proxy with no business logic, Frontend controls navigation by fetching JSON and redirecting browser. Architectural improvement establishes proper REST API pattern with clean separation of concerns. OAuth flow successfully redirects to Microsoft login page (Azure AD multi-tenant configuration pending).
+
+---
+
 ## 2025-11-12 16:55 — MS365 tenant implementation Phase 2 (Tenant Management UI)
 - Prompts:
 ```

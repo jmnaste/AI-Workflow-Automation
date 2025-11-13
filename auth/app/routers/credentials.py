@@ -129,24 +129,24 @@ async def list_credentials(admin_payload: dict = Depends(verify_admin)):
             
             return [
                 CredentialResponse(
-                    id=str(row[0]),
-                    name=row[1],
-                    display_name=row[2],
-                    provider=row[3],
-                    client_id=row[4],
-                    redirect_uri=row[5],
-                    authorization_url=row[6],
-                    token_url=row[7],
-                    scopes=row[8],
-                    connected_email=row[9],
-                    external_account_id=row[10],
-                    connected_display_name=row[11],
-                    status=row[12],
-                    error_message=row[13],
-                    last_connected_at=row[14],
-                    created_at=row[15],
-                    created_by=row[16],
-                    updated_at=row[17]
+                    id=str(row['id']),
+                    name=row['name'],
+                    display_name=row['display_name'],
+                    provider=row['provider'],
+                    client_id=row['client_id'],
+                    redirect_uri=row['redirect_uri'],
+                    authorization_url=row['authorization_url'],
+                    token_url=row['token_url'],
+                    scopes=row['scopes'],
+                    connected_email=row['connected_email'],
+                    external_account_id=row['external_account_id'],
+                    connected_display_name=row['connected_display_name'],
+                    status=row['status'],
+                    error_message=row['error_message'],
+                    last_connected_at=row['last_connected_at'],
+                    created_at=row['created_at'],
+                    created_by=row['created_by_email'],
+                    updated_at=row['updated_at']
                 )
                 for row in rows
             ]
@@ -204,28 +204,32 @@ async def create_credential(
                 conn.commit()
                 
                 return CredentialResponse(
-                    id=str(row[0]),
-                    name=row[1],
-                    display_name=row[2],
-                    provider=row[3],
-                    client_id=row[4],
-                    redirect_uri=row[5],
-                    authorization_url=row[6],
-                    token_url=row[7],
-                    scopes=row[8],
-                    connected_email=row[9],
-                    external_account_id=row[10],
-                    connected_display_name=row[11],
-                    status=row[12],
-                    error_message=row[13],
-                    last_connected_at=row[14],
-                    created_at=row[15],
+                    id=str(row['id']),
+                    name=row['name'],
+                    display_name=row['display_name'],
+                    provider=row['provider'],
+                    client_id=row['client_id'],
+                    redirect_uri=row['redirect_uri'],
+                    authorization_url=row['authorization_url'],
+                    token_url=row['token_url'],
+                    scopes=row['scopes'],
+                    connected_email=row['connected_email'],
+                    external_account_id=row['external_account_id'],
+                    connected_display_name=row['connected_display_name'],
+                    status=row['status'],
+                    error_message=row['error_message'],
+                    last_connected_at=row['last_connected_at'],
+                    created_at=row['created_at'],
                     created_by=None,  # Don't expose creator ID
-                    updated_at=row[17]
+                    updated_at=row['updated_at']
                 )
                 
             except Exception as e:
                 conn.rollback()
+                # Log the full error for debugging
+                import traceback
+                print(f"ERROR creating credential: {str(e)}")
+                print(f"Traceback: {traceback.format_exc()}")
                 # Check for unique constraint violations
                 if "unique" in str(e).lower():
                     if "name" in str(e).lower():
@@ -261,24 +265,24 @@ async def get_credential(
                 raise HTTPException(status_code=404, detail="Credential not found")
             
             return CredentialResponse(
-                id=str(row[0]),
-                name=row[1],
-                display_name=row[2],
-                provider=row[3],
-                client_id=row[4],
-                redirect_uri=row[5],
-                authorization_url=row[6],
-                token_url=row[7],
-                scopes=row[8],
-                connected_email=row[9],
-                external_account_id=row[10],
-                connected_display_name=row[11],
-                status=row[12],
-                error_message=row[13],
-                last_connected_at=row[14],
-                created_at=row[15],
-                created_by=row[16],
-                updated_at=row[17]
+                id=str(row['id']),
+                name=row['name'],
+                display_name=row['display_name'],
+                provider=row['provider'],
+                client_id=row['client_id'],
+                redirect_uri=row['redirect_uri'],
+                authorization_url=row['authorization_url'],
+                token_url=row['token_url'],
+                scopes=row['scopes'],
+                connected_email=row['connected_email'],
+                external_account_id=row['external_account_id'],
+                connected_display_name=row['connected_display_name'],
+                status=row['status'],
+                error_message=row['error_message'],
+                last_connected_at=row['last_connected_at'],
+                created_at=row['created_at'],
+                created_by=row['created_by_email'],
+                updated_at=row['updated_at']
             )
 
 
@@ -361,24 +365,24 @@ async def update_credential(
                 conn.commit()
                 
                 return CredentialResponse(
-                    id=str(row[0]),
-                    name=row[1],
-                    display_name=row[2],
-                    provider=row[3],
-                    client_id=row[4],
-                    redirect_uri=row[5],
-                    authorization_url=row[6],
-                    token_url=row[7],
-                    scopes=row[8],
-                    connected_email=row[9],
-                    external_account_id=row[10],
-                    connected_display_name=row[11],
-                    status=row[12],
-                    error_message=row[13],
-                    last_connected_at=row[14],
-                    created_at=row[15],
+                    id=str(row['id']),
+                    name=row['name'],
+                    display_name=row['display_name'],
+                    provider=row['provider'],
+                    client_id=row['client_id'],
+                    redirect_uri=row['redirect_uri'],
+                    authorization_url=row['authorization_url'],
+                    token_url=row['token_url'],
+                    scopes=row['scopes'],
+                    connected_email=row['connected_email'],
+                    external_account_id=row['external_account_id'],
+                    connected_display_name=row['connected_display_name'],
+                    status=row['status'],
+                    error_message=row['error_message'],
+                    last_connected_at=row['last_connected_at'],
+                    created_at=row['created_at'],
                     created_by=None,
-                    updated_at=row[17]
+                    updated_at=row['updated_at']
                 )
                 
             except Exception as e:

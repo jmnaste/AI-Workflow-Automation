@@ -130,7 +130,7 @@ async def get_tenant_token_internal(request: Request) -> Dict[str, Any]:
                     (tenant_id,)
                 )
                 row = cur.fetchone()
-                expires_at = row[0] if row else None
+                expires_at = row['expires_at'] if row else None
         
         return {
             "access_token": access_token,
