@@ -13,7 +13,7 @@ except Exception:  # pragma: no cover
 from .services.migrations import run_migrations
 from .services import users, otp, jwt, sms
 from .services import email as email_service
-from .routers import oauth
+from .routers import oauth, credentials, credentials_oauth
 
 """
 User Role Definitions:
@@ -41,7 +41,9 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Auth Service", version="0.1.0", lifespan=lifespan)
 
 # Include routers
-app.include_router(oauth.router)
+app.include_router(oauth.router)  # Old tenant OAuth flow (to be deprecated)
+app.include_router(credentials.router)  # New credentials CRUD
+app.include_router(credentials_oauth.router)  # New credentials OAuth flow
 
 # Request/Response Models
 class RequestOtpRequest(BaseModel):

@@ -69,12 +69,13 @@ def decrypt_token(ciphertext: str) -> str:
     return decrypted.decode()
 
 
-# MS365 OAuth configuration
+# MS365 OAuth configuration (DEPRECATED - for old tenant flow only)
+# New credentials flow uses database-stored configuration
 MS365_AUTHORIZE_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
 MS365_TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-MS365_CLIENT_ID = os.environ.get("MICROSOFT_CLIENT_ID", "")
-MS365_CLIENT_SECRET = os.environ.get("MICROSOFT_CLIENT_SECRET", "")
-MS365_REDIRECT_URI = os.environ.get("MICROSOFT_REDIRECT_URI", "http://localhost:8000/auth/oauth/ms365/callback")
+MS365_CLIENT_ID = os.environ.get("MICROSOFT_CLIENT_ID", "")  # DEPRECATED: Use credentials table
+MS365_CLIENT_SECRET = os.environ.get("MICROSOFT_CLIENT_SECRET", "")  # DEPRECATED: Use credentials table
+MS365_REDIRECT_URI = os.environ.get("MICROSOFT_REDIRECT_URI", "http://localhost:8000/auth/oauth/ms365/callback")  # DEPRECATED
 MS365_SCOPES = [
     "offline_access",  # Required for refresh tokens
     "https://graph.microsoft.com/Mail.Read",
@@ -87,33 +88,49 @@ MS365_SCOPES = [
 _oauth_states: Dict[str, Dict[str, Any]] = {}
 
 
-def generate_oauth_state(user_id: UUID, provider: str) -> str:
-    """Generate and store OAuth state for CSRF protection."""
+def generate_oauth_state(identifier: UUID, provider: str) -> str:
+    """
+    Generate and store OAuth state for CSRF protection.
+    
+    Args:
+        identifier: Can be user_id (old tenant flow) or credential_id (new credentials flow)
+        provider: Provider type (ms365, google_workspace, etc.)
+    """
     state = secrets.token_urlsafe(32)
     _oauth_states[state] = {
-        "user_id": str(user_id),
+        "identifier": str(identifier),  # Can be user_id or credential_id
         "provider": provider,
         "expires_at": datetime.utcnow() + timedelta(minutes=10)
     }
     return state
 
 
-def validate_oauth_state(state: str, provider: str) -> Optional[UUID]:
-    """Validate OAuth state and return user_id if valid."""
+def validate_oauth_state(state: str, provider: str = None) -> Optional[UUID]:
+    """
+    Validate OAuth state and return identifier (user_id or credential_id) if valid.
+    
+    Args:
+        state: OAuth state token
+        provider: Provider type (optional, for backwards compatibility)
+    
+    Returns:
+        UUID of identifier (user_id or credential_id) if valid, None otherwise
+    """
     state_data = _oauth_states.get(state)
     if not state_data:
         return None
     
-    if state_data["provider"] != provider:
+    # Provider check is optional for credentials flow
+    if provider and state_data["provider"] != provider:
         return None
     
     if datetime.utcnow() > state_data["expires_at"]:
         _oauth_states.pop(state, None)
         return None
     
-    user_id = UUID(state_data["user_id"])
+    identifier = UUID(state_data["identifier"])
     _oauth_states.pop(state, None)  # One-time use
-    return user_id
+    return identifier
 
 
 def build_ms365_authorize_url(user_id: UUID) -> str:
