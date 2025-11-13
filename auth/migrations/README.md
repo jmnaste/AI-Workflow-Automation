@@ -12,6 +12,8 @@ This folder contains hand-written, idempotent SQL migrations for the `auth` sche
 - `0004_restructure_for_email_primary.sql` — makes `email` NOT NULL (primary identifier), makes `phone` nullable, adds `otp_preference` column (sms/email); updates registry/history.
 - `0005_seed_admin_user.sql` — seeds admin user (jmnaste@yahoo.ca) with SMS OTP preference; idempotent with ON CONFLICT DO NOTHING.
 - `0006_tenant_tokens.sql` — adds `auth.tenant_tokens` table for storing encrypted OAuth credentials (access/refresh tokens) per tenant; updates schema to version 0.1.3.
+- `0007_drop_tenants.sql` — **BREAKING**: drops `auth.tenants` and `auth.tenant_tokens` tables in preparation for credentials refactor; updates schema to version 0.1.4.
+- `0008_credentials.sql` — **BREAKING**: creates `auth.credentials` and `auth.credential_tokens` tables for OAuth credential management (replaces tenant model); updates schema to version 0.2.0.
 - `9999_health_check.sql` — minimal, idempotent health check for psql debugging; logs diagnostics to `auth.migration_health_log` and does NOT change `auth.schema_registry`.
 
 ## How to run
@@ -43,6 +45,8 @@ docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v 
 docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0004_restructure_for_email_primary.sql
 docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0005_seed_admin_user.sql
 docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0006_tenant_tokens.sql
+docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0007_drop_tenants.sql
+docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/0008_credentials.sql
 docker exec -it <auth_container_name> psql -h postgres -U app_root -d app_db -v ON_ERROR_STOP=1 -f /auth/migrations/9999_health_check.sql
 ```
 
