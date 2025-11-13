@@ -9,7 +9,7 @@ import Workflows from '../pages/Workflows';
 import Settings from '../pages/Settings';
 import SignIn from '../pages/SignIn';
 import UserManagement from '../pages/admin/UserManagement';
-import Tenants from '../pages/admin/Tenants';
+import Credentials from '../pages/admin/Credentials';
 import SystemSettings from '../pages/admin/SystemSettings';
 
 const theme = createTheme(buildTheme({ primary: '#1E6BFF' }));
@@ -55,7 +55,7 @@ function AppRoutes() {
       {/* Admin routes - protected by AdminLayout */}
       <Route path="admin" element={<AdminLayout />}>
         <Route path="users" element={<UserManagement />} />
-        <Route path="tenants" element={<Tenants />} />
+        <Route path="credentials" element={<Credentials />} />
         <Route path="settings" element={<SystemSettings />} />
       </Route>
     </Route>      {/* Catch all - redirect to dashboard if authenticated, sign-in otherwise */}

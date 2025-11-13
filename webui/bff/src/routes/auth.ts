@@ -137,10 +137,10 @@ router.post('/logout', (req, res) => {
 });
 
 /**
- * GET /bff/auth/tenants
- * List all connected tenants (admin only)
+ * GET /bff/auth/credentials
+ * List all credentials (admin only)
  */
-router.get('/tenants', async (req, res) => {
+router.get('/credentials', async (req, res) => {
   try {
     const token = req.cookies[process.env.JWT_COOKIE_NAME || 'flovify_token'];
     
@@ -149,7 +149,7 @@ router.get('/tenants', async (req, res) => {
       return;
     }
     
-    const response = await fetch(`${AUTH_SERVICE_URL}/auth/tenants`, {
+    const response = await fetch(`${AUTH_SERVICE_URL}/auth/credentials/`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -166,16 +166,16 @@ router.get('/tenants', async (req, res) => {
     res.json(data);
     
   } catch (error) {
-    req.log.error({ error }, 'Failed to proxy tenants list to Auth Service');
+    req.log.error({ error }, 'Failed to proxy credentials list to Auth Service');
     res.status(500).json({ error: 'Failed to connect to authentication service' });
   }
 });
 
 /**
- * DELETE /bff/auth/tenants/:tenantId
- * Disconnect a tenant (admin only)
+ * POST /bff/auth/credentials
+ * Create a new credential (admin only)
  */
-router.delete('/tenants/:tenantId', async (req, res) => {
+router.post('/credentials', async (req, res) => {
   try {
     const token = req.cookies[process.env.JWT_COOKIE_NAME || 'flovify_token'];
     
@@ -184,13 +184,92 @@ router.delete('/tenants/:tenantId', async (req, res) => {
       return;
     }
     
-    const response = await fetch(`${AUTH_SERVICE_URL}/auth/tenants/${req.params.tenantId}`, {
+    const response = await fetch(`${AUTH_SERVICE_URL}/auth/credentials/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(req.body),
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      res.status(response.status).json(data);
+      return;
+    }
+    
+    req.log.info({ credentialName: req.body.name }, 'Credential created');
+    res.status(201).json(data);
+    
+  } catch (error) {
+    req.log.error({ error }, 'Failed to proxy credential creation to Auth Service');
+    res.status(500).json({ error: 'Failed to connect to authentication service' });
+  }
+});
+
+/**
+ * GET /bff/auth/credentials/:credentialId
+ * Get a specific credential (admin only)
+ */
+router.get('/credentials/:credentialId', async (req, res) => {
+  try {
+    const token = req.cookies[process.env.JWT_COOKIE_NAME || 'flovify_token'];
+    
+    if (!token) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+    
+    const response = await fetch(`${AUTH_SERVICE_URL}/auth/credentials/${req.params.credentialId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      res.status(response.status).json(data);
+      return;
+    }
+    
+    res.json(data);
+    
+  } catch (error) {
+    req.log.error({ error }, 'Failed to proxy credential get to Auth Service');
+    res.status(500).json({ error: 'Failed to connect to authentication service' });
+  }
+});
+
+/**
+ * DELETE /bff/auth/credentials/:credentialId
+ * Delete a credential (admin only)
+ */
+router.delete('/credentials/:credentialId', async (req, res) => {
+  try {
+    const token = req.cookies[process.env.JWT_COOKIE_NAME || 'flovify_token'];
+    
+    if (!token) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+    
+    const response = await fetch(`${AUTH_SERVICE_URL}/auth/credentials/${req.params.credentialId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
       },
     });
     
+    if (response.status === 204) {
+      req.log.info({ credentialId: req.params.credentialId }, 'Credential deleted');
+      res.status(204).send();
+      return;
+    }
+    
     const data = await response.json();
     
     if (!response.ok) {
@@ -198,56 +277,72 @@ router.delete('/tenants/:tenantId', async (req, res) => {
       return;
     }
     
-    req.log.info({ tenantId: req.params.tenantId }, 'Tenant disconnected');
     res.json(data);
     
   } catch (error) {
-    req.log.error({ error }, 'Failed to proxy tenant deletion to Auth Service');
+    req.log.error({ error }, 'Failed to proxy credential deletion to Auth Service');
     res.status(500).json({ error: 'Failed to connect to authentication service' });
   }
 });
 
 /**
- * GET /bff/auth/oauth/:provider/authorize
- * Start OAuth flow for connecting external account
+ * GET /bff/auth/oauth/authorize?credential_id=xxx
+ * Start OAuth flow for a specific credential
  * Redirects to Auth Service which redirects to OAuth provider
  */
-router.get('/oauth/:provider/authorize', async (req, res) => {
+router.get('/oauth/authorize', async (req, res) => {
   try {
-    const token = req.cookies[process.env.JWT_COOKIE_NAME || 'flovify_token'];
+    const credentialId = req.query.credential_id;
     
-    if (!token) {
-      res.status(401).json({ error: 'Not authenticated' });
+    if (!credentialId || typeof credentialId !== 'string') {
+      res.status(400).json({ error: 'credential_id query parameter required' });
       return;
     }
     
-    const provider = req.params.provider;
+    // Redirect to Auth Service OAuth endpoint
+    const authUrl = `${AUTH_SERVICE_URL}/auth/oauth/authorize?credential_id=${credentialId}`;
     
-    // Redirect to Auth Service OAuth endpoint (which will redirect to provider)
-    const authUrl = `${AUTH_SERVICE_URL}/auth/oauth/${provider}/authorize`;
-    
-    // Forward with Authorization header
-    const response = await fetch(authUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      redirect: 'manual', // Don't follow redirects
-    });
-    
-    // Get redirect location from Auth Service
-    const location = response.headers.get('location');
-    
-    if (location) {
-      req.log.info({ provider }, 'Redirecting to OAuth provider');
-      res.redirect(location);
-    } else {
-      res.status(500).json({ error: 'Failed to initiate OAuth flow' });
-    }
+    req.log.info({ credentialId }, 'Starting OAuth flow for credential');
+    res.redirect(authUrl);
     
   } catch (error) {
     req.log.error({ error }, 'Failed to start OAuth flow');
     res.status(500).json({ error: 'Failed to connect to authentication service' });
+  }
+});
+
+/**
+ * GET /bff/auth/oauth/callback
+ * OAuth callback handler - receives code and state from provider
+ * Forwards to Auth Service for token exchange
+ */
+router.get('/oauth/callback', async (req, res) => {
+  try {
+    const error = req.query.error;
+    
+    // Forward all query params to Auth Service
+    const queryParams = new URLSearchParams(req.query as Record<string, string>).toString();
+    const authUrl = `${AUTH_SERVICE_URL}/auth/oauth/callback?${queryParams}`;
+    
+    // Proxy the request
+    const response = await fetch(authUrl, {
+      method: 'GET',
+      redirect: 'manual', // Don't follow redirects
+    });
+    
+    // Get redirect location from Auth Service (should redirect to UI)
+    const location = response.headers.get('location');
+    
+    if (location) {
+      req.log.info({ hasError: !!error }, 'OAuth callback processed, redirecting to UI');
+      res.redirect(location);
+    } else {
+      res.status(500).send('OAuth callback processing failed');
+    }
+    
+  } catch (error) {
+    req.log.error({ error }, 'Failed to process OAuth callback');
+    res.status(500).send('Failed to process OAuth callback');
   }
 });
 
