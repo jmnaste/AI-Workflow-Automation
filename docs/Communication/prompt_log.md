@@ -16,6 +16,17 @@ Entries are appended in reverse chronological order.
 
 ---
 
+## 2025-01-13 18:15 — Remove overly restrictive provider+client_id unique constraint
+- Prompts:
+```
+On local, creating a new credential fails when saving
+
+But why can't there be more than one credential for the same client id and provider? I know it doesn't make much sense but it would not be an error?
+```
+- Answer: User encountered HTTP 409 error when creating credential - existing unique constraint `credentials_provider_clientid_unique` prevented multiple credentials with same OAuth app. User correctly identified this as overly restrictive since valid use cases exist (testing different configs, separate environments, maintaining old credentials while testing new). Created migration 0010 to drop the constraint (v0.2.1 → v0.2.2), keeping only `credentials_name_key` unique constraint. Applied successfully - now multiple credentials can use same provider+client_id combination as long as credential names are unique.
+
+---
+
 ## 2025-01-13 17:00 — Add tenant_id support for Azure AD single-tenant OAuth apps
 - Prompts:
 ```
