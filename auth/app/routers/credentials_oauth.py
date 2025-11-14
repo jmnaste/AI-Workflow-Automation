@@ -366,15 +366,26 @@ async def get_credential_token_internal(request: Request) -> Dict[str, Any]:
                     cred_id
                 ))
                 
-                new_expires_at = cur.fetchone()[0]
+                row = cur.fetchone()
+                new_expires_at = row[0] if row else None
                 conn.commit()
         
         access_token = new_tokens["access_token"]
         expires_at = new_expires_at
     
+    # Convert expires_at to Unix timestamp for easier client handling
+    expires_timestamp = None
+    if expires_at:
+        if hasattr(expires_at, 'timestamp'):
+            expires_timestamp = int(expires_at.timestamp())
+        else:
+            # If it's already a timestamp, use it
+            expires_timestamp = int(expires_at) if isinstance(expires_at, (int, float)) else None
+    
     return {
         "access_token": access_token,
-        "expires_at": expires_at.isoformat() if expires_at else None,
+        "expires_at": expires_timestamp,
+        "token_type": "Bearer",
         "credential_id": str(cred_id),
         "provider": provider
     }

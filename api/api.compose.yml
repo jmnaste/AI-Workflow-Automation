@@ -15,7 +15,10 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=${DATABASE_URL}
-      - API_MIN_AUTH_VERSION=${API_MIN_AUTH_VERSION:-}
+      - API_MIN_AUTH_VERSION=${API_MIN_AUTH_VERSION:-0.2.0}
+      # Auth service integration (token vending)
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-http://auth:8000}
+      - SERVICE_SECRET=${SERVICE_SECRET}
     labels:
       # Keep private by default; set API_PUBLIC=true to expose webhook route(s)
       - traefik.enable=${API_PUBLIC:-false}

@@ -19,6 +19,10 @@ TRAEFIK_NETWORK=root_default
 DATABASE_URL=postgresql://flovify:YOUR_PASSWORD@postgres:5432/flovify
 # JWT (required - generate with: openssl rand -base64 32)
 JWT_SECRET=your-secure-secret-at-least-32-chars
+# OAuth Encryption (required - generate with: openssl rand -base64 32)
+OAUTH_ENCRYPTION_KEY=your-oauth-encryption-key-32-chars
+# Service-to-service auth (required - must match API service)
+SERVICE_SECRET=your-service-secret-generate-with-openssl
 # OTP Configuration (optional - defaults shown)
 OTP_EXPIRY_MINUTES=5
 OTP_MAX_ATTEMPTS=3
