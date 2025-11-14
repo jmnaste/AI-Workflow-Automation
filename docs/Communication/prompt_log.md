@@ -16,6 +16,22 @@ Entries are appended in reverse chronological order.
 
 ---
 
+## 2025-01-13 17:00 — Add tenant_id support for Azure AD single-tenant OAuth apps
+- Prompts:
+```
+But, can you explain single vs multi-tenant because if I remember correctly n8n instructions asked to choose single ... but I may be wrong so I need to understand for us to come with the best decision.
+
+First, we agreed together to eliminate the tenant word as it has been discussed related to the flovify architecture.
+Second, wouldn't be best to stick to single-tenant since only users from the MS365 domain shall be allowed to connect.
+
+Shouldn't tenant id be part of credentials?
+
+Yes please
+```
+- Answer: User clarified Flovify is internal tool (not multi-customer SaaS), requiring Azure AD single-tenant configuration. Implemented tenant_id as credential-level property (not global config) for maximum flexibility. Created migration 0009 adding nullable tenant_id column to auth.credentials (schema v0.2.1). Updated backend: credential models, get_provider_defaults() to use tenant-specific or /common URLs, all CRUD endpoints handle tenant_id. Frontend: Added optional tenant_id field to CreateCredentialDialog (MS365 only) with helper text explaining where to find it in Azure Portal. OAuth flow automatically uses tenant-specific endpoints when tenant_id provided, fixing AADSTS50194 error for single-tenant apps. Migration applied and services rebuilt successfully.
+
+---
+
 ## 2025-01-13 15:30 — Psycopg3 dict_row indexing fix & OAuth flow architecture refactoring
 - Prompts:
 ```

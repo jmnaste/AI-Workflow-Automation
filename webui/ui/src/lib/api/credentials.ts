@@ -7,6 +7,7 @@ export interface Credential {
   provider: string;
   client_id: string;
   redirect_uri: string;
+  tenant_id?: string;
   authorization_url: string;
   token_url: string;
   scopes: string[];
@@ -28,6 +29,7 @@ export interface CreateCredentialRequest {
   client_id: string;
   client_secret: string;
   redirect_uri: string;
+  tenant_id?: string;
   authorization_url?: string;
   token_url?: string;
   scopes?: string[];

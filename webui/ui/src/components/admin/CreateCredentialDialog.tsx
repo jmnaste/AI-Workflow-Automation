@@ -35,6 +35,7 @@ export default function CreateCredentialDialog({ open, onClose, onSuccess }: Cre
   const [displayName, setDisplayName] = useState('');
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
+  const [tenantId, setTenantId] = useState('');
   const [redirectUri, setRedirectUri] = useState(() => {
     // Initialize with default redirect URI
     const baseUrl = window.location.origin;
@@ -106,6 +107,7 @@ export default function CreateCredentialDialog({ open, onClose, onSuccess }: Cre
         client_id: clientId,
         client_secret: clientSecret,
         redirect_uri: redirectUri,
+        ...(tenantId && { tenant_id: tenantId }), // Only include if provided
       };
 
       const credential = await createCredential(request);
@@ -132,6 +134,7 @@ export default function CreateCredentialDialog({ open, onClose, onSuccess }: Cre
     setDisplayName('');
     setClientId('');
     setClientSecret('');
+    setTenantId('');
     setRedirectUri('');
     setProvider('ms365');
     setError(null);
@@ -224,6 +227,19 @@ export default function CreateCredentialDialog({ open, onClose, onSuccess }: Cre
               disabled={loading}
               helperText="OAuth application client secret (will be encrypted)"
             />
+
+            {/* Tenant ID (MS365 only) */}
+            {provider === 'ms365' && (
+              <TextField
+                fullWidth
+                label="Tenant ID (Optional)"
+                placeholder="12345678-1234-1234-1234-123456789abc"
+                value={tenantId}
+                onChange={(e) => setTenantId(e.target.value)}
+                disabled={loading}
+                helperText="Azure AD Tenant ID for single-tenant apps. Leave empty for multi-tenant. Find in Azure Portal → Azure Active Directory → Overview"
+              />
+            )}
 
             {/* Redirect URI */}
             <TextField

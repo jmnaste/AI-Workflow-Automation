@@ -21,6 +21,7 @@ class CreateCredentialRequest(BaseModel):
     client_id: str = Field(..., description="OAuth app client ID")
     client_secret: str = Field(..., description="OAuth app client secret (will be encrypted)")
     redirect_uri: str = Field(..., description="OAuth redirect URI")
+    tenant_id: Optional[str] = Field(None, description="Azure AD Tenant ID for MS365 single-tenant apps (GUID format)")
     authorization_url: Optional[str] = Field(None, description="Custom authorization URL (uses provider default if not specified)")
     token_url: Optional[str] = Field(None, description="Custom token URL (uses provider default if not specified)")
     scopes: Optional[List[str]] = Field(None, description="OAuth scopes (uses provider defaults if not specified)")
@@ -32,6 +33,7 @@ class UpdateCredentialRequest(BaseModel):
     client_id: Optional[str] = None
     client_secret: Optional[str] = None
     redirect_uri: Optional[str] = None
+    tenant_id: Optional[str] = None
     authorization_url: Optional[str] = None
     token_url: Optional[str] = None
     scopes: Optional[List[str]] = None
@@ -45,6 +47,7 @@ class CredentialResponse(BaseModel):
     provider: str
     client_id: str
     redirect_uri: str
+    tenant_id: Optional[str]
     authorization_url: str
     token_url: str
     scopes: List[str]
@@ -75,12 +78,23 @@ def verify_admin(authorization: str = Header(..., alias="Authorization")) -> dic
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
 
 
-def get_provider_defaults(provider: str) -> dict:
-    """Get default OAuth URLs and scopes for a provider."""
+def get_provider_defaults(provider: str, tenant_id: Optional[str] = None) -> dict:
+    """
+    Get default OAuth URLs and scopes for a provider.
+    
+    Args:
+        provider: Provider type ('ms365' or 'google_workspace')
+        tenant_id: Azure AD Tenant ID for MS365 single-tenant apps (optional)
+    
+    Returns:
+        Dict with authorization_url, token_url, and scopes
+    """
     if provider == "ms365":
+        # Use tenant-specific endpoint if tenant_id provided, otherwise use /common
+        tenant_segment = tenant_id if tenant_id else "common"
         return {
-            "authorization_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-            "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+            "authorization_url": f"https://login.microsoftonline.com/{tenant_segment}/oauth2/v2.0/authorize",
+            "token_url": f"https://login.microsoftonline.com/{tenant_segment}/oauth2/v2.0/token",
             "scopes": [
                 "offline_access",
                 "https://graph.microsoft.com/Mail.Read",
@@ -116,7 +130,7 @@ async def list_credentials(admin_payload: dict = Depends(verify_admin)):
             cur.execute("""
                 SELECT 
                     c.id, c.name, c.display_name, c.provider, c.client_id,
-                    c.redirect_uri, c.authorization_url, c.token_url, c.scopes,
+                    c.redirect_uri, c.tenant_id, c.authorization_url, c.token_url, c.scopes,
                     c.connected_email, c.external_account_id, c.connected_display_name,
                     c.status, c.error_message, c.last_connected_at,
                     c.created_at, u.email as created_by_email, c.updated_at
@@ -135,6 +149,7 @@ async def list_credentials(admin_payload: dict = Depends(verify_admin)):
                     provider=row['provider'],
                     client_id=row['client_id'],
                     redirect_uri=row['redirect_uri'],
+                    tenant_id=row['tenant_id'],
                     authorization_url=row['authorization_url'],
                     token_url=row['token_url'],
                     scopes=row['scopes'],
@@ -164,8 +179,8 @@ async def create_credential(
     """
     from ..services.oauth import encrypt_token
     
-    # Get provider defaults
-    defaults = get_provider_defaults(request.provider)
+    # Get provider defaults (pass tenant_id for MS365 single-tenant)
+    defaults = get_provider_defaults(request.provider, request.tenant_id)
     
     # Use provided values or defaults
     authorization_url = request.authorization_url or defaults["authorization_url"]
@@ -183,21 +198,21 @@ async def create_credential(
                 cur.execute("""
                     INSERT INTO auth.credentials (
                         name, display_name, provider, client_id, encrypted_client_secret,
-                        redirect_uri, authorization_url, token_url, scopes,
+                        redirect_uri, tenant_id, authorization_url, token_url, scopes,
                         status, created_by
                     ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending', %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending', %s
                     )
                     RETURNING 
                         id, name, display_name, provider, client_id,
-                        redirect_uri, authorization_url, token_url, scopes,
+                        redirect_uri, tenant_id, authorization_url, token_url, scopes,
                         connected_email, external_account_id, connected_display_name,
                         status, error_message, last_connected_at,
                         created_at, created_by, updated_at
                 """, (
                     request.name, request.display_name, request.provider,
                     request.client_id, encrypted_secret, request.redirect_uri,
-                    authorization_url, token_url, scopes, user_id
+                    request.tenant_id, authorization_url, token_url, scopes, user_id
                 ))
                 
                 row = cur.fetchone()
@@ -210,6 +225,7 @@ async def create_credential(
                     provider=row['provider'],
                     client_id=row['client_id'],
                     redirect_uri=row['redirect_uri'],
+                    tenant_id=row['tenant_id'],
                     authorization_url=row['authorization_url'],
                     token_url=row['token_url'],
                     scopes=row['scopes'],
@@ -250,7 +266,7 @@ async def get_credential(
             cur.execute("""
                 SELECT 
                     c.id, c.name, c.display_name, c.provider, c.client_id,
-                    c.redirect_uri, c.authorization_url, c.token_url, c.scopes,
+                    c.redirect_uri, c.tenant_id, c.authorization_url, c.token_url, c.scopes,
                     c.connected_email, c.external_account_id, c.connected_display_name,
                     c.status, c.error_message, c.last_connected_at,
                     c.created_at, u.email as created_by_email, c.updated_at
@@ -271,6 +287,7 @@ async def get_credential(
                 provider=row['provider'],
                 client_id=row['client_id'],
                 redirect_uri=row['redirect_uri'],
+                tenant_id=row['tenant_id'],
                 authorization_url=row['authorization_url'],
                 token_url=row['token_url'],
                 scopes=row['scopes'],
@@ -322,6 +339,11 @@ async def update_credential(
         params.append(request.redirect_uri)
         updates.append("status = 'pending'")
     
+    if request.tenant_id is not None:
+        updates.append("tenant_id = %s")
+        params.append(request.tenant_id)
+        updates.append("status = 'pending'")  # Reset status when tenant changes
+    
     if request.authorization_url is not None:
         updates.append("authorization_url = %s")
         params.append(request.authorization_url)
@@ -350,7 +372,7 @@ async def update_credential(
                     WHERE id = %s
                     RETURNING 
                         id, name, display_name, provider, client_id,
-                        redirect_uri, authorization_url, token_url, scopes,
+                        redirect_uri, tenant_id, authorization_url, token_url, scopes,
                         connected_email, external_account_id, connected_display_name,
                         status, error_message, last_connected_at,
                         created_at, created_by, updated_at
@@ -371,6 +393,7 @@ async def update_credential(
                     provider=row['provider'],
                     client_id=row['client_id'],
                     redirect_uri=row['redirect_uri'],
+                    tenant_id=row['tenant_id'],
                     authorization_url=row['authorization_url'],
                     token_url=row['token_url'],
                     scopes=row['scopes'],
