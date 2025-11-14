@@ -367,7 +367,8 @@ async def get_credential_token_internal(request: Request) -> Dict[str, Any]:
                 ))
                 
                 row = cur.fetchone()
-                new_expires_at = row[0] if row else None
+                # psycopg3 Row object - access by column name or convert to tuple
+                new_expires_at = row['expires_at'] if row else None
                 conn.commit()
         
         access_token = new_tokens["access_token"]
