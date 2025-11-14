@@ -455,46 +455,48 @@ The application integrates with Microsoft 365 and Google Workspace for:
 - Calendar and contacts
 - Real-time event notifications
 
-**Webhook Strategy:** OAuth callbacks and event webhooks are handled by the **Auth service** on a separate subdomain (`webhooks.flovify.ca`).
+**OAuth Callback Strategy:** OAuth callbacks are handled by the **BFF** with provider-specific routes that forward to the **Auth service**.
 
 ```
 Microsoft/Google OAuth
-  ↓ https://webhooks.flovify.ca/webhook/oauth/*/callback
+  ↓ https://console.flovify.ca/bff/auth/webhook/{provider}
   ↓
-Traefik → Auth Service (public webhook routes only)
+Traefik → WebUI (Nginx) → BFF (Express)
+  ↓ Forward with query params
+Auth Service: /auth/oauth/callback
   ↓
-Auth validates, exchanges code for token
+Auth validates, exchanges code for tokens
   ↓
-Stores encrypted token in auth.oauth_tokens
+Stores encrypted tokens in auth.credential_tokens
+  ↓
+Redirects to UI success page
 ```
 
-**Why Auth (not BFF or API):**
-- ✅ Auth owns identity and OAuth token lifecycle
-- ✅ Narrow public exposure (only `/webhook/*` paths)
-- ✅ Domain isolation (webhooks.flovify.ca ≠ console.flovify.ca)
-- ✅ API remains 100% private
-- ✅ Auth compose already designed for webhook support
+**Architecture Rationale:**
+- ✅ **Separation of concerns**: BFF handles public-facing OAuth callbacks, Auth handles backend token exchange
+- ✅ **Provider extensibility**: Easy to add new providers (`/bff/auth/webhook/salesforce`, `/bff/auth/webhook/slack`)
+- ✅ **Single domain**: OAuth callbacks on same domain as UI (no CORS issues)
+- ✅ **Auth service remains private**: No public exposure needed
+- ✅ **Credential-based**: Multiple OAuth apps per provider supported
 
-**Configuration:**
-```env
-# Hostinger → Auth container
-AUTH_PUBLIC=true
-AUTH_WEBHOOK_HOST=webhooks.flovify.ca
-AUTH_WEBHOOK_PATH_PREFIX=/webhook
-```
+**BFF OAuth Routes:**
+- `/bff/auth/webhook/ms365` → Forwards to Auth `/auth/oauth/callback`
+- `/bff/auth/webhook/googlews` → Forwards to Auth `/auth/oauth/callback`
+- `/bff/auth/oauth/callback` → Generic fallback route
 
-**DNS Setup:**
+**External Service Configuration (Azure/Google):**
 ```
-webhooks.flovify.ca A → <VPS IP>
+Microsoft 365: Redirect URI = https://console.flovify.ca/bff/auth/webhook/ms365
+Google Workspace: Redirect URI = https://console.flovify.ca/bff/auth/webhook/googlews
 ```
 
-**External Service Configuration:**
-```
-Microsoft: Redirect URI = https://webhooks.flovify.ca/webhook/oauth/microsoft/callback
-Google:    Redirect URI = https://webhooks.flovify.ca/webhook/oauth/google/callback
-```
-
-See `auth/WEBHOOKS.md` for detailed implementation guide.
+**Credentials Model:**
+Each credential stores its own OAuth app configuration:
+- `client_id`, `client_secret`: OAuth app credentials
+- `redirect_uri`: Provider-specific callback URL
+- `tenant_id`: (Optional) Azure AD tenant ID for single-tenant apps
+- `scopes`: Permissions requested
+- Multiple credentials per provider allowed (testing, different tenants, etc.)
 
 ---
 
@@ -504,11 +506,15 @@ See `auth/WEBHOOKS.md` for detailed implementation guide.
 
 | Method | Path | Purpose | Auth Required |
 |--------|------|---------|---------------|
-| POST | `/bff/auth/login` | Login with email/password | No |
+| POST | `/bff/auth/request-otp` | Request OTP for login | No |
+| POST | `/bff/auth/verify-otp` | Verify OTP and login | No |
 | POST | `/bff/auth/logout` | Clear session | Yes |
 | GET | `/bff/auth/me` | Get current user info | Yes |
-| POST | `/bff/auth/connect/microsoft` | Initiate Microsoft OAuth flow | Yes |
-| POST | `/bff/auth/connect/google` | Initiate Google OAuth flow | Yes |
+| GET | `/bff/auth/credentials` | List OAuth credentials | Yes (admin) |
+| POST | `/bff/auth/credentials` | Create OAuth credential | Yes (admin) |
+| GET | `/bff/auth/oauth/authorize?credential_id=xxx` | Get OAuth authorization URL | Yes (admin) |
+| GET | `/bff/auth/webhook/ms365` | MS365 OAuth callback | No (public) |
+| GET | `/bff/auth/webhook/googlews` | Google Workspace OAuth callback | No (public) |
 | GET | `/bff/dashboard` | Aggregate dashboard data | Yes |
 | GET | `/bff/workflows` | List workflows for user | Yes |
 | POST | `/bff/workflows` | Create new workflow | Yes |
@@ -523,14 +529,15 @@ See `auth/WEBHOOKS.md` for detailed implementation guide.
 | `http://api:8000/workflows` | API | `X-User-ID: <user_id>` |
 | `http://api:8000/metrics` | API | `X-User-ID: <user_id>` |
 
-### Auth Public Webhook Endpoints
+### BFF OAuth Callback Routes (Public)
 
 | Method | Path | Purpose | Public |
 |--------|------|---------|--------|
-| GET | `/webhook/oauth/microsoft/callback` | Microsoft OAuth callback | Yes (webhooks.flovify.ca) |
-| GET | `/webhook/oauth/google/callback` | Google OAuth callback | Yes (webhooks.flovify.ca) |
-| POST | `/webhook/events/microsoft` | Microsoft webhook events | Yes (signature validated) |
-| POST | `/webhook/events/google` | Google webhook events | Yes (token validated) |
+| GET | `/bff/auth/webhook/ms365` | Microsoft 365 OAuth callback | Yes (via console.flovify.ca) |
+| GET | `/bff/auth/webhook/googlews` | Google Workspace OAuth callback | Yes (via console.flovify.ca) |
+| GET | `/bff/auth/oauth/callback` | Generic OAuth callback (fallback) | Yes (via console.flovify.ca) |
+
+**Note**: All BFF OAuth callbacks forward to Auth service `/auth/oauth/callback` for token exchange.
 
 ---
 

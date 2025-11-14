@@ -16,6 +16,19 @@ Entries are appended in reverse chronological order.
 
 ---
 
+## 2025-01-13 21:30 — Add provider-specific OAuth callback routes to BFF
+- Prompts:
+```
+We had a discussion about separation of concern saying the callback should be responsibility of the bff rather than auth. Maybe the refactor has not been done entirely?
+
+I think the .../bff/auth/webhook/ms365 is a better name since as soon as ms365 credentials work we will implement GoogleWS credentials.
+
+Please review documentation and see if updates are needed about the changes we made in credentials design and implementation.
+```
+- Answer: User identified OAuth callback architecture gap - BFF had generic `/oauth/callback` route but production redirect URIs used provider-specific `/webhook/ms365` path. Added provider-specific BFF routes: `/bff/auth/webhook/ms365` and `/bff/auth/webhook/googlews` that forward to Auth service `/auth/oauth/callback` for token exchange. Updated documentation across copilot-instructions.md, auth/README.md, and webui/ARCHITECTURE.md to reflect credential-based architecture (not tenant-based), provider-specific callback URLs, separation of concerns (BFF handles public callbacks, Auth handles token exchange), and correct redirect URI format for Azure/Google OAuth apps.
+
+---
+
 ## 2025-01-13 18:15 — Remove overly restrictive provider+client_id unique constraint
 - Prompts:
 ```

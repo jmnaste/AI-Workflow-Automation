@@ -19,42 +19,48 @@ n8n Workflows → API Service (AI primitives, webhook processing)
 
 | Service | Port | Schema | Responsibilities | Database Access |
 |---------|------|--------|------------------|-----------------|
-| **Auth** | 8000 | `auth.*` | OTP authentication, JWT issuance, user identity, **tenant credentials**, OAuth token management | Direct to `auth` schema |
+| **Auth** | 8000 | `auth.*` | OTP authentication, JWT issuance, user identity, **OAuth credentials**, token management | Direct to `auth` schema |
 | **API** | 8000 | `api.*` | **Webhooks**, business logic, LangGraph workflows, metrics | Direct to `api` schema |
-| **WebUI BFF** | 3001 | None | Thin proxy, JWT cookie management | **No database access** |
+| **WebUI BFF** | 3001 | None | Thin proxy, JWT cookie management, **OAuth callback routing** | **No database access** |
 | **Postgres** | 5432 | All schemas | Data persistence | N/A (is the database) |
 | **NetShell** | - | None | Network debugging toolbox | None |
 
-### Tenant Model
+### Credentials Model
 
-**Tenant = Account owned by Flovify instance owner in external system**: A "tenant" represents a specific account (email, user, workspace) that the Flovify instance owner has in an external system. One Flovify installation can connect to multiple accounts per provider.
+**Credential = OAuth app configuration for external provider**: A "credential" represents OAuth application settings (client_id, client_secret, scopes) for connecting to an external provider. One Flovify installation can have multiple credentials per provider for different use cases.
 
-**Example**: Flovify instance owner might have:
-- 2 MS365 accounts (`john@acme.com`, `john@acme-retail.com`)
-- 3 Google Workspace accounts (different email addresses)
-- Future: Salesforce user accounts, Slack workspaces
+**Example**: Flovify instance might have:
+- 2 MS365 credentials (production + testing, or different tenants)
+- 3 Google Workspace credentials (different scopes or environments)
+- Future: Salesforce, Slack, custom OAuth providers
+
+**Key Features**:
+- **tenant_id** (optional): Azure AD tenant ID for single-tenant apps
+- **Multiple credentials per provider**: Removed unique constraint on (provider, client_id) - allows testing different configurations
+- **Encrypted storage**: Client secrets encrypted at rest using Fernet
+- **Provider-specific callbacks**: `/bff/auth/webhook/ms365`, `/bff/auth/webhook/googlews`
 
 **System Context**: Flovify complements n8n workflow implementation
 - n8n = High-level workflow orchestration
 - Flovify = Specialized AI-powered email/document processing primitives
 - Integration: n8n workflows call Flovify API endpoints
 
-**Tenant data flow**:
-1. Webhook arrives at API → includes `subscription_id`
-2. API looks up `tenant_id` from `api.webhook_subscriptions`
-3. API worker requests OAuth token from Auth: "Token for tenant X"
-4. Auth returns valid token from `auth.tenant_tokens` (refreshing if needed)
-5. Worker uses token to call external API (MS Graph, Gmail)
-6. Worker processes data, stores in `api.*` schema with `tenant_id` reference
+**OAuth flow**:
+1. User creates credential in Admin UI → stored in `auth.credentials`
+2. User clicks "Connect" → BFF generates OAuth authorization URL
+3. User consents on provider → redirect to `/bff/auth/webhook/{provider}`
+4. BFF forwards to Auth `/auth/oauth/callback` with code and state
+5. Auth exchanges code for tokens → stores in `auth.credential_tokens`
+6. Auth marks credential as `connected` → redirects user to success page
 
 **Auth Service** handles:
 - OTP generation/validation (SMS via Twilio, Email via SMTP)
 - JWT signing and validation
 - User management (admin endpoints with `X-Admin-Token`)
-- **Tenant management**: External system instances (MS365, Google Workspace)
-- **OAuth token storage**: Encrypted credentials per tenant (`auth.tenant_tokens`)
+- **Credential management**: OAuth app configurations (`auth.credentials`)
+- **OAuth token storage**: Encrypted tokens per credential (`auth.credential_tokens`)
 - **Token refresh**: Automatic renewal of expired OAuth tokens
-- **Subscription renewal**: Proactive renewal of MS365/Google webhook subscriptions
+- **Token exchange**: Backend OAuth callback handler
 
 **User Roles** (defined in Auth service):
 - **user**: Standard user with basic access
@@ -76,6 +82,7 @@ n8n Workflows → API Service (AI primitives, webhook processing)
 **BFF responsibilities**:
 - Routes `/bff/auth/*` → Auth Service at `http://auth:8000`
 - Routes `/bff/api/*` → API Service at `http://api:8000`
+- **OAuth callback routing**: Provider-specific routes (`/bff/auth/webhook/ms365`, `/bff/auth/webhook/googlews`) forward to Auth
 - Validates JWTs (extracts user info), sets httpOnly cookies
 - **Does NOT** contain business logic or database queries
 

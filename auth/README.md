@@ -129,37 +129,79 @@ Security tips:
 - Validate signatures or tokens from the sender
 - Optionally add Traefik middlewares (rate limit, IP allowlist, basic auth)
 
-## OAuth & Tenant Management
+## OAuth & Credential Management
 
 The Auth service manages OAuth credentials for external providers (Microsoft 365, Google Workspace). It provides:
 
-- OAuth authorization flow initiation
-- Token exchange and storage (encrypted at rest)
-- Automatic token refresh before expiry
-- Token vending to API service (internal endpoint)
+- **Credential CRUD**: Create, update, delete OAuth app configurations via Admin UI
+- **OAuth authorization flow**: Generate OAuth URLs and handle callbacks
+- **Token exchange and storage**: Encrypted at rest using Fernet
+- **Automatic token refresh**: Before expiry
+- **Token vending**: API service can request tokens per credential (internal endpoint)
+
+### Credential-Based Architecture
+
+**Credentials** represent OAuth app configurations, not individual accounts. One Flovify instance can have multiple credentials per provider for:
+- Testing different OAuth apps (dev vs production)
+- Different Azure AD tenants (multi-organization support)
+- Different scopes or redirect URIs
+- Separate environments (staging, production)
+
+**Key Properties**:
+- `name`: Unique identifier (e.g., "ms365-production", "ms365-testing")
+- `provider`: `ms365` or `googlews`
+- `client_id`, `client_secret`: OAuth app credentials (encrypted at rest)
+- `tenant_id`: (Optional) Azure AD tenant ID for single-tenant apps
+- `redirect_uri`: OAuth callback URL (always points to BFF)
+- `scopes`: Permissions requested from provider
+- `connected`: Boolean indicating if OAuth flow completed successfully
 
 ### MS365 OAuth Setup
 
-1. Create Azure App Registration:
+1. **Create Azure App Registration:**
    - Azure Portal → App Registrations → New
-   - Redirect URI: `https://console.flovify.ca/auth/oauth/ms365/callback` (production) or `http://localhost:8000/auth/oauth/ms365/callback` (local)
-   - API Permissions: `Mail.Read`, `Mail.Send`, `User.Read`, `offline_access` (delegated)
-   - Grant admin consent
+   - **Redirect URI**: `https://console.flovify.ca/bff/auth/webhook/ms365` (production) or `http://localhost:5173/bff/auth/webhook/ms365` (local dev)
+   - **API Permissions**: `Mail.Read`, `Mail.Send`, `User.Read`, `offline_access` (delegated)
+   - Grant admin consent (if single-tenant)
+   - **Note Tenant ID**: Found in Overview → Directory (tenant) ID (required for single-tenant apps)
 
-2. Add environment variables:
+2. **Create Credential in Flovify:**
+   - Log into `https://console.flovify.ca/admin/credentials`
+   - Click "Create Credential"
+   - Fill in:
+     - **Name**: `ms365-production` (or any unique name)
+     - **Provider**: `Microsoft 365`
+     - **Client ID**: From Azure app registration
+     - **Client Secret**: From Azure app → Certificates & secrets
+     - **Tenant ID**: (Optional) For single-tenant apps, paste tenant GUID
+     - **Redirect URI**: Auto-filled with correct BFF callback
+     - **Scopes**: Auto-filled with default MS365 scopes
+   - Click "Create" → credential saved to database
+
+3. **Connect OAuth Account:**
+   - Click "Connect" button on credential
+   - Redirected to Microsoft login → consent screen
+   - After consent → redirected back to Flovify
+   - Credential status changes to "Connected"
+   - OAuth tokens stored encrypted in `auth.credential_tokens`
+
+4. **Environment variables** (Auth service):
    ```
-   MICROSOFT_CLIENT_ID=your-azure-app-id
-   MICROSOFT_CLIENT_SECRET=your-azure-secret
-   MICROSOFT_REDIRECT_URI=https://console.flovify.ca/auth/oauth/ms365/callback
    OAUTH_ENCRYPTION_KEY=<base64-32-byte-key>  # Generate: openssl rand -base64 32
-   SERVICE_SECRET=<shared-secret>  # Must match API service
+   SERVICE_SECRET=<shared-secret>  # Must match API service (for token vending)
    ```
 
 ### OAuth Endpoints
 
-- `GET /auth/oauth/ms365/authorize` - Start OAuth flow (requires user JWT)
-- `GET /auth/oauth/ms365/callback` - OAuth callback handler
-- `POST /auth/internal/tenant-token` - Token vending (internal, requires `X-Service-Token`)
+**Public (via BFF):**
+- `GET /bff/auth/oauth/authorize?credential_id=xxx` - Get OAuth authorization URL
+- `GET /bff/auth/webhook/ms365` - MS365 OAuth callback (provider-specific)
+- `GET /bff/auth/webhook/googlews` - Google Workspace OAuth callback (provider-specific)
+
+**Internal (Auth service):**
+- `GET /auth/oauth/authorize?credential_id=xxx` - Generate OAuth authorization URL
+- `GET /auth/oauth/callback` - Process OAuth callback (code exchange)
+- `POST /auth/oauth/internal/credential-token` - Token vending (requires `X-Service-Token`)
 
 **Security**: All tokens are encrypted at rest using Fernet symmetric encryption. Only the API service can request tokens via the internal endpoint.
 

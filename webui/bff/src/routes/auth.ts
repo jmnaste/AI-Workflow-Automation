@@ -364,4 +364,74 @@ router.get('/oauth/callback', async (req, res) => {
   }
 });
 
+/**
+ * GET /bff/auth/webhook/ms365
+ * Microsoft 365 OAuth callback - provider-specific route
+ * Forwards to generic OAuth callback handler
+ */
+router.get('/webhook/ms365', async (req, res) => {
+  try {
+    const error = req.query.error;
+    
+    // Forward all query params to Auth Service
+    const queryParams = new URLSearchParams(req.query as Record<string, string>).toString();
+    const authUrl = `${AUTH_SERVICE_URL}/auth/oauth/callback?${queryParams}`;
+    
+    // Proxy the request
+    const response = await fetch(authUrl, {
+      method: 'GET',
+      redirect: 'manual', // Don't follow redirects
+    });
+    
+    // Get redirect location from Auth Service (should redirect to UI)
+    const location = response.headers.get('location');
+    
+    if (location) {
+      req.log.info({ provider: 'ms365', hasError: !!error }, 'MS365 OAuth callback processed, redirecting to UI');
+      res.redirect(location);
+    } else {
+      res.status(500).send('OAuth callback processing failed');
+    }
+    
+  } catch (error) {
+    req.log.error({ error, provider: 'ms365' }, 'Failed to process MS365 OAuth callback');
+    res.status(500).send('Failed to process OAuth callback');
+  }
+});
+
+/**
+ * GET /bff/auth/webhook/googlews
+ * Google Workspace OAuth callback - provider-specific route
+ * Forwards to generic OAuth callback handler
+ */
+router.get('/webhook/googlews', async (req, res) => {
+  try {
+    const error = req.query.error;
+    
+    // Forward all query params to Auth Service
+    const queryParams = new URLSearchParams(req.query as Record<string, string>).toString();
+    const authUrl = `${AUTH_SERVICE_URL}/auth/oauth/callback?${queryParams}`;
+    
+    // Proxy the request
+    const response = await fetch(authUrl, {
+      method: 'GET',
+      redirect: 'manual', // Don't follow redirects
+    });
+    
+    // Get redirect location from Auth Service (should redirect to UI)
+    const location = response.headers.get('location');
+    
+    if (location) {
+      req.log.info({ provider: 'googlews', hasError: !!error }, 'Google Workspace OAuth callback processed, redirecting to UI');
+      res.redirect(location);
+    } else {
+      res.status(500).send('OAuth callback processing failed');
+    }
+    
+  } catch (error) {
+    req.log.error({ error, provider: 'googlews' }, 'Failed to process Google Workspace OAuth callback');
+    res.status(500).send('Failed to process OAuth callback');
+  }
+});
+
 export default router;
