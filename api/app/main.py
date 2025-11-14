@@ -124,3 +124,63 @@ def egress_health(url: str | None = None):
             return {"status": "ok", "url": target, "code": int(code)}
     except Exception as e:  # pragma: no cover
         raise HTTPException(status_code=500, detail=f"Egress failed: {e}")
+
+
+# ============================================================================
+# Test Endpoints (for development/debugging)
+# ============================================================================
+
+@app.get("/api/test/auth-token/{credential_id}")
+async def test_auth_token(credential_id: str):
+    """
+    Test endpoint for Auth service token vending.
+    
+    Tests the auth_client service by requesting a token for the given credential.
+    Returns token metadata (not the actual token for security).
+    """
+    from .services.auth_client import get_credential_token, AuthClientError
+    
+    try:
+        token_data = await get_credential_token(credential_id)
+        
+        # Return metadata only (not actual token)
+        return {
+            "status": "success",
+            "credential_id": credential_id,
+            "has_token": bool(token_data.get("access_token")),
+            "token_length": len(token_data.get("access_token", "")),
+            "expires_at": token_data.get("expires_at"),
+            "token_type": token_data.get("token_type")
+        }
+    except AuthClientError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+
+@app.get("/api/test/auth-validate/{credential_id}")
+async def test_auth_validate(credential_id: str):
+    """
+    Test endpoint to validate if a credential is connected.
+    
+    Returns boolean indicating if credential has valid tokens.
+    """
+    from .services.auth_client import validate_credential_connected
+    
+    is_connected = await validate_credential_connected(credential_id)
+    
+    return {
+        "status": "success",
+        "credential_id": credential_id,
+        "is_connected": is_connected
+    }
+
+
+@app.get("/api/test/auth-cache")
+def test_auth_cache():
+    """
+    Get token cache statistics for monitoring.
+    """
+    from .services.auth_client import get_cache_stats
+    
+    return get_cache_stats()

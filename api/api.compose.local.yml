@@ -16,8 +16,11 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - API_MIN_AUTH_VERSION=${API_MIN_AUTH_VERSION:-}
+      - API_MIN_AUTH_VERSION=${API_MIN_AUTH_VERSION:-0.2.0}
       - SERVICE_SEMVER=${SERVICE_SEMVER:-0.1.0}
+      # Auth service integration
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-http://auth:8000}
+      - SERVICE_SECRET=${SERVICE_SECRET}
     ports:
       - "8001:8000"
     labels:

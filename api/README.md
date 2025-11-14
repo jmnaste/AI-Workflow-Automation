@@ -15,9 +15,16 @@ This folder contains everything needed to build the API image in GitHub Actions 
 
 ```
 TRAEFIK_NETWORK=root_default
-# Optional if using Postgres: DSN on the private Docker network
-# For psycopg driver:
+
+# Database connection
 DATABASE_URL=postgresql://app_root:YOUR_PASSWORD@postgres:5432/app_db
+
+# Auth service integration (for token vending)
+AUTH_SERVICE_URL=http://auth:8000
+SERVICE_SECRET=<generate-with-openssl-rand-base64-32>
+
+# Optional: Minimum Auth schema version required to start
+API_MIN_AUTH_VERSION=0.2.0
 ```
 
 4) Deploy. No ports are published and no Traefik router is created; the API runs privately.
@@ -101,17 +108,39 @@ If you configured `DATABASE_URL`, you can also check DB connectivity:
 
 - `curl -s http://api:8000/api/db/health`
 
-## Gate API on Auth schema version (optional)
+## Environment Variables Reference
 
-To avoid incompatibilities, you can make the API refuse to start until Auth has applied a minimum schema version.
+### Required
 
-Set in the API environment:
+- **`TRAEFIK_NETWORK`**: Docker network name (e.g., `root_default`)
+- **`DATABASE_URL`**: PostgreSQL connection string
+- **`AUTH_SERVICE_URL`**: Auth service URL for token vending (e.g., `http://auth:8000`)
+- **`SERVICE_SECRET`**: Shared secret for service-to-service authentication (generate with `openssl rand -base64 32`)
 
+### Optional
+
+- **`API_MIN_AUTH_VERSION`**: Minimum Auth schema version required (e.g., `0.2.0`). API will refuse to start until Auth has applied this version or higher.
+- **`API_PUBLIC`**: Set to `true` to enable public webhook routes via Traefik
+- **`API_WEBHOOK_HOST`**: Public hostname for webhooks (e.g., `webhooks.flovify.ca`)
+- **`API_WEBHOOK_PATH_PREFIX`**: Path prefix for webhook routes (e.g., `/webhook`)
+- **`API_ENTRYPOINTS`**: Traefik entrypoints (e.g., `websecure`)
+- **`TRAEFIK_CERT_RESOLVER`**: TLS certificate resolver name (e.g., `letsencrypt`)
+
+### Generating SERVICE_SECRET
+
+The `SERVICE_SECRET` must match between API and Auth services for token vending to work:
+
+```bash
+openssl rand -base64 32
 ```
-API_MIN_AUTH_VERSION=0.1.0
-```
 
-On startup, the API will query `auth.schema_registry` in the same database and require that the `auth` service semver is greater than or equal to `API_MIN_AUTH_VERSION`. If the check fails, the API will exit with an error so your orchestrator restarts it after Auth finishes migrations.
+Add the same value to both API and Auth environment variables.
+
+## Gate API on Auth schema version
+
+To avoid incompatibilities, set `API_MIN_AUTH_VERSION` to require a minimum Auth schema version.
+
+On startup, the API will query `auth.schema_registry` and require that the `auth` service semver is greater than or equal to `API_MIN_AUTH_VERSION`. If the check fails, the API will exit with an error so your orchestrator restarts it after Auth finishes migrations.
 
 ## Troubleshooting
 

@@ -38,6 +38,8 @@ services:
       - SMTP_FROM=${SMTP_FROM:-noreply@flovify.ca}
       # OAuth Encryption Key (required for credential management)
       - OAUTH_ENCRYPTION_KEY=${OAUTH_ENCRYPTION_KEY}
+      # Service-to-service authentication (for API token vending)
+      - SERVICE_SECRET=${SERVICE_SECRET}
     ports:
       - "8000:8000"
     labels:
