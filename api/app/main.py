@@ -62,7 +62,7 @@ def check_auth_schema_version():
                     "SELECT semver FROM auth.schema_registry WHERE service = 'auth'"
                 )
                 row = cur.fetchone()
-                current = row['semver'] if row else None
+                current = row[0] if row else None
     except Exception as e:
         raise RuntimeError(f"Failed to check auth schema_registry: {e}")
 
@@ -97,9 +97,8 @@ def db_health():
         # Short connect timeout; simple round-trip
         with psycopg.connect(dsn, connect_timeout=3) as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT version() as version, current_database() as dbname, current_user as user")
-                row = cur.fetchone()
-                version, dbname, user = row['version'], row['dbname'], row['user']
+                cur.execute("SELECT version(), current_database(), current_user")
+                version, dbname, user = cur.fetchone()
         return {"status": "ok", "database": dbname, "user": user, "version": str(version)}
     except Exception as e:  # pragma: no cover
         raise HTTPException(status_code=500, detail=f"DB check failed: {e}")
