@@ -5,11 +5,13 @@ Handles CRUD operations for MS365 webhook subscriptions.
 Subscriptions are stored in api.webhook_subscriptions table.
 """
 
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Request, Query
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 from datetime import datetime
 import uuid
+import json
 
 from ..services.ms365_service import (
     create_subscription,
@@ -373,3 +375,184 @@ async def delete_webhook_subscription(subscription_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete subscription: {str(e)}")
+
+
+# ============================================================================
+# Webhook Receiver Endpoint
+# ============================================================================
+
+@router.post("/webhook", status_code=202)
+async def receive_ms365_webhook(
+    request: Request,
+    validationToken: Optional[str] = Query(None)
+):
+    """
+    Receive MS365 webhook notifications.
+    
+    This endpoint handles two scenarios:
+    
+    1. **Validation Challenge** (during subscription creation):
+       MS365 sends a GET with ?validationToken=xxx
+       We must return the token as plain text with 200 OK
+       
+    2. **Change Notifications** (after subscription is active):
+       MS365 POSTs an array of notifications
+       We store them in webhook_events table with idempotency
+       We return 202 Accepted immediately
+    
+    Idempotency:
+        Uses (credential_id, subscriptionId, resourceData.id) as unique key
+        Prevents duplicate processing of the same event
+    
+    MS365 Requirements:
+        - Must respond within 3 seconds
+        - Must return 202 for notifications (not 200)
+        - Must return 200 with validationToken for validation
+        - Endpoint must be HTTPS
+        - Endpoint must be publicly accessible
+    
+    Example Validation Request:
+        POST /api/ms365/webhook?validationToken=abc123
+        
+    Example Notification Request:
+        POST /api/ms365/webhook
+        {
+          "value": [
+            {
+              "subscriptionId": "7f366c7e-...",
+              "clientState": "secret123",
+              "changeType": "created",
+              "resource": "Users/{userId}/Messages/{messageId}",
+              "resourceData": {
+                "@odata.type": "#Microsoft.Graph.Message",
+                "@odata.id": "Users/{userId}/Messages/{messageId}",
+                "id": "{messageId}"
+              },
+              "subscriptionExpirationDateTime": "2025-11-17T18:00:00Z",
+              "tenantId": "{tenantId}"
+            }
+          ]
+        }
+    """
+    
+    # Handle validation challenge (subscription creation)
+    if validationToken:
+        print(f"Received validation challenge: {validationToken}")
+        return PlainTextResponse(content=validationToken, status_code=200)
+    
+    # Handle change notifications
+    try:
+        body = await request.json()
+        notifications = body.get("value", [])
+        
+        if not notifications:
+            print("Received empty notification")
+            return {"status": "accepted", "message": "No notifications to process"}
+        
+        print(f"Received {len(notifications)} notification(s)")
+        
+        # Process each notification
+        conn = get_db_connection()
+        try:
+            stored_count = 0
+            duplicate_count = 0
+            
+            for notification in notifications:
+                subscription_id = notification.get("subscriptionId")
+                change_type = notification.get("changeType")
+                resource = notification.get("resource")
+                resource_data = notification.get("resourceData", {})
+                external_resource_id = resource_data.get("id") or resource_data.get("@odata.id")
+                
+                if not subscription_id or not external_resource_id:
+                    print(f"Invalid notification: missing subscriptionId or resourceId")
+                    continue
+                
+                # Look up subscription to get credential_id
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        SELECT id, credential_id
+                        FROM api.webhook_subscriptions
+                        WHERE external_subscription_id = %s
+                    """, (subscription_id,))
+                    
+                    row = cur.fetchone()
+                    if not row:
+                        print(f"Subscription {subscription_id} not found in database")
+                        continue
+                    
+                    internal_sub_id = str(row[0])
+                    credential_id = str(row[1])
+                
+                # Generate idempotency key
+                idempotency_key = f"{credential_id}:{subscription_id}:{external_resource_id}"
+                
+                # Store event with idempotency check
+                with conn.cursor() as cur:
+                    try:
+                        cur.execute("""
+                            INSERT INTO api.webhook_events (
+                                credential_id,
+                                subscription_id,
+                                provider,
+                                event_type,
+                                idempotency_key,
+                                external_resource_id,
+                                raw_payload,
+                                status
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                            RETURNING id
+                        """, (
+                            credential_id,
+                            internal_sub_id,
+                            'ms365',
+                            change_type,
+                            idempotency_key,
+                            external_resource_id,
+                            json.dumps(notification),
+                            'pending'
+                        ))
+                        
+                        event_id = cur.fetchone()[0]
+                        stored_count += 1
+                        print(f"Stored event {event_id} for resource {external_resource_id}")
+                        
+                    except Exception as e:
+                        # Likely duplicate (idempotency_key constraint)
+                        if "unique constraint" in str(e).lower() or "duplicate key" in str(e).lower():
+                            duplicate_count += 1
+                            print(f"Duplicate event for resource {external_resource_id} (idempotency)")
+                        else:
+                            print(f"Error storing event: {e}")
+                            raise
+                
+                # Update subscription last_notification_at
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE api.webhook_subscriptions
+                        SET last_notification_at = NOW(), updated_at = NOW()
+                        WHERE external_subscription_id = %s
+                    """, (subscription_id,))
+            
+            conn.commit()
+            
+            print(f"Webhook processing complete: {stored_count} stored, {duplicate_count} duplicates")
+            
+            return {
+                "status": "accepted",
+                "stored": stored_count,
+                "duplicates": duplicate_count,
+                "total": len(notifications)
+            }
+            
+        finally:
+            conn.close()
+    
+    except json.JSONDecodeError:
+        print("Invalid JSON in webhook request")
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    except Exception as e:
+        print(f"Error processing webhook: {e}")
+        # Return 202 anyway to acknowledge receipt (MS365 requirement)
+        # The error will be logged but won't block MS365 from considering it received
+        return {"status": "accepted", "error": str(e)}
