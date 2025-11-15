@@ -84,7 +84,7 @@ async def process_pending_events(batch_size: int = WORKER_BATCH_SIZE) -> Dict[st
                 with conn.cursor() as cur:
                     cur.execute("""
                         UPDATE api.webhook_events
-                        SET status = 'processing', updated_at = NOW()
+                        SET status = 'processing'
                         WHERE id = %s
                     """, (event_id,))
                     conn.commit()
@@ -109,8 +109,7 @@ async def process_pending_events(batch_size: int = WORKER_BATCH_SIZE) -> Dict[st
                         SET 
                             normalized_payload = %s,
                             status = 'completed',
-                            processed_at = NOW(),
-                            updated_at = NOW()
+                            processed_at = NOW()
                         WHERE id = %s
                     """, (json.dumps(normalized), event_id))
                     conn.commit()
@@ -142,8 +141,7 @@ async def process_pending_events(batch_size: int = WORKER_BATCH_SIZE) -> Dict[st
                         SET 
                             status = %s,
                             retry_count = %s,
-                            error_message = %s,
-                            updated_at = NOW()
+                            error_message = %s
                         WHERE id = %s
                     """, (final_status, new_retry_count, error_message[:500], event_id))
                     conn.commit()

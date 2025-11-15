@@ -274,7 +274,7 @@ API_PUBLIC=true
 API_WEBHOOK_HOST=api.flovify.ca
 API_WEBHOOK_PATH_PREFIX=/webhook
 API_ENTRYPOINTS=websecure
-TRAEFIK_CERT_RESOLVER=letsencrypt
+TRAEFIK_CERT_RESOLVER=mytlschallenge
 ```
 
 **Generate SERVICE_SECRET**:

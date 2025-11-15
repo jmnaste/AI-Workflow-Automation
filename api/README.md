@@ -77,7 +77,7 @@ API_WEBHOOK_PATH_PREFIX=/webhooks
 API_ENTRYPOINTS=websecure
 
 # TLS certificate resolver configured in your Traefik instance
-TRAEFIK_CERT_RESOLVER=letsencrypt
+TRAEFIK_CERT_RESOLVER=mytlschallenge
 ```
 
 2) Redeploy the project. Traefik will route requests matching:

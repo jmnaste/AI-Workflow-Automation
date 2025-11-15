@@ -123,7 +123,7 @@ AUTH_PUBLIC=true
 AUTH_WEBHOOK_HOST=webhooks.example.com
 AUTH_WEBHOOK_PATH_PREFIX=/webhook
 AUTH_ENTRYPOINTS=websecure
-TRAEFIK_CERT_RESOLVER=letsencrypt
+TRAEFIK_CERT_RESOLVER=mytlschallenge
 ```
 
 Redeploy. Traefik will route only requests that match the configured host and path prefix to the auth service on port 8000.

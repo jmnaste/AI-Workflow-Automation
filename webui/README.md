@@ -19,7 +19,7 @@ A React + TypeScript SPA with BFF (Backend for Frontend) pattern, served by Ngin
 TRAEFIK_NETWORK=root_default
 UI_HOST=console.flovify.ca
 UI_ENTRYPOINTS=websecure
-TRAEFIK_CERT_RESOLVER=letsencrypt
+TRAEFIK_CERT_RESOLVER=mytlschallenge
 NODE_ENV=production
 API_BASE_URL=http://api:8000
 AUTH_BASE_URL=http://auth:8000

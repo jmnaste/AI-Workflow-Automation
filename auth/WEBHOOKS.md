@@ -93,7 +93,7 @@ AUTH_PUBLIC=true
 AUTH_WEBHOOK_HOST=webhooks.flovify.ca
 AUTH_WEBHOOK_PATH_PREFIX=/webhook
 AUTH_ENTRYPOINTS=websecure
-TRAEFIK_CERT_RESOLVER=letsencrypt
+TRAEFIK_CERT_RESOLVER=mytlschallenge
 
 # Microsoft OAuth
 MICROSOFT_CLIENT_ID=your-client-id

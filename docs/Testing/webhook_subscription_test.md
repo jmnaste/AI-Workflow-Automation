@@ -33,7 +33,7 @@ API_PUBLIC=true
 API_WEBHOOK_HOST=webhooks.flovify.ca
 API_WEBHOOK_PATH_PREFIX=/webhooks
 API_ENTRYPOINTS=websecure
-TRAEFIK_CERT_RESOLVER=letsencrypt
+TRAEFIK_CERT_RESOLVER=mytlschallenge
 ```
 
 **Then restart API service.**

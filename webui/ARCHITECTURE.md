@@ -554,7 +554,7 @@ UI_HOST=console.flovify.ca
 
 # Traefik TLS
 UI_ENTRYPOINTS=websecure
-TRAEFIK_CERT_RESOLVER=letsencrypt
+TRAEFIK_CERT_RESOLVER=mytlschallenge
 
 # Runtime
 NODE_ENV=production
