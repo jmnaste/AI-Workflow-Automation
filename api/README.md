@@ -67,9 +67,11 @@ If you need the API to receive webhooks from external systems, you can enable a 
 # Enable public routing via Traefik
 API_PUBLIC=true
 
-# Router host and path you control (examples)
-API_WEBHOOK_HOST=webhooks.example.com
-API_WEBHOOK_PATH_PREFIX=/webhook
+# Router host and path you control (must match your DNS)
+API_WEBHOOK_HOST=webhooks.flovify.ca
+
+# Path prefix for all webhook routes (covers all providers)
+API_WEBHOOK_PATH_PREFIX=/webhooks
 
 # Traefik entrypoints (typically websecure for HTTPS)
 API_ENTRYPOINTS=websecure
@@ -83,12 +85,18 @@ TRAEFIK_CERT_RESOLVER=letsencrypt
 - Host: `API_WEBHOOK_HOST`
 - Path prefix: `API_WEBHOOK_PATH_PREFIX`
 
-to the API container’s port 8000. Example public URL: `https://webhooks.example.com/webhook/...`
+to the API container's port 8000.
+
+**Example public URLs**: 
+- MS365: `https://webhooks.flovify.ca/webhooks/ms365/webhook`
+- Google: `https://webhooks.flovify.ca/webhooks/googlews/webhook`
+
+**Important**: Use `/webhooks` as the path prefix to expose all webhook receiver routes (`/webhooks/*`) while keeping other API endpoints (`/api/*`) private on the Docker network.
 
 Security tips:
 
-- Use a secret and unpredictable path, e.g., `/webhook/<random-token>`.
-- Consider validating an HMAC signature or token header from the webhook sender.
+- MS365 webhooks validate the endpoint during subscription creation
+- Consider validating an HMAC signature or token header from the webhook sender
 - Optionally add Traefik middlewares (rate limit, IP allowlist, basic auth). These can be added as extra `traefik.http.middlewares.*` labels and referenced by the router.
 
 ## How n8n calls the API
@@ -125,7 +133,7 @@ If you configured `DATABASE_URL`, you can also check DB connectivity:
 - **`WEBHOOK_MAX_RETRIES`**: Max retry attempts for failed events (default: `3`)
 - **`API_PUBLIC`**: Set to `true` to enable public webhook routes via Traefik
 - **`API_WEBHOOK_HOST`**: Public hostname for webhooks (e.g., `webhooks.flovify.ca`)
-- **`API_WEBHOOK_PATH_PREFIX`**: Path prefix for webhook routes (e.g., `/webhook`)
+- **`API_WEBHOOK_PATH_PREFIX`**: Path prefix for webhook routes (use `/webhooks` to expose all providers)
 - **`API_ENTRYPOINTS`**: Traefik entrypoints (e.g., `websecure`)
 - **`TRAEFIK_CERT_RESOLVER`**: TLS certificate resolver name (e.g., `letsencrypt`)
 

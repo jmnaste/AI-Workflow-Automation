@@ -288,7 +288,7 @@ async def create_subscription(
             cred_id,
             resource="me/mailFolders('inbox')/messages",
             change_types=["created"],
-            notification_url="https://api.flovify.ca/api/ms365/webhook"
+            notification_url="https://webhooks.flovify.ca/webhooks/ms365/webhook"
         )
     """
     try:

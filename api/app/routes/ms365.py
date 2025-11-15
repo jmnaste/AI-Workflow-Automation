@@ -22,7 +22,7 @@ from ..services.ms365_service import (
 from ..services.database import get_db_connection
 
 
-router = APIRouter(prefix="/api/ms365", tags=["MS365 Webhooks"])
+router = APIRouter(prefix="/webhooks/ms365", tags=["MS365 Webhooks"])
 
 
 class CreateSubscriptionRequest(BaseModel):
@@ -41,7 +41,7 @@ class CreateSubscriptionRequest(BaseModel):
     notification_url: str = Field(
         ...,
         description="HTTPS URL to receive notifications",
-        examples=["https://webhooks.flovify.ca/api/ms365/webhook"]
+        examples=["https://webhooks.flovify.ca/webhooks/ms365/webhook"]
     )
     expiration_hours: int = Field(
         default=72,
@@ -92,12 +92,12 @@ async def create_webhook_subscription(request: CreateSubscriptionRequest):
     - notification_url must be publicly accessible for MS365 to validate
     
     Example:
-        POST /api/ms365/subscriptions
+        POST /webhooks/ms365/subscriptions
         {
             "credential_id": "37b08f02-62d8-4327-aac7-f20e13b7f440",
             "resource": "me/mailFolders('inbox')/messages",
             "change_types": ["created"],
-            "notification_url": "https://webhooks.flovify.ca/api/ms365/webhook",
+            "notification_url": "https://webhooks.flovify.ca/webhooks/ms365/webhook",
             "expiration_hours": 72
         }
     """
@@ -176,9 +176,9 @@ async def list_subscriptions(credential_id: str, status: Optional[str] = None):
     Returns:
         List of subscriptions
         
-    Example:
-        GET /api/ms365/subscriptions/37b08f02-62d8-4327-aac7-f20e13b7f440
-        GET /api/ms365/subscriptions/37b08f02-62d8-4327-aac7-f20e13b7f440?status=active
+    Examples:
+        GET /webhooks/ms365/subscriptions/37b08f02-62d8-4327-aac7-f20e13b7f440
+        GET /webhooks/ms365/subscriptions/37b08f02-62d8-4327-aac7-f20e13b7f440?status=active
     """
     try:
         conn = get_db_connection()
@@ -248,7 +248,7 @@ async def renew_webhook_subscription(
         Updated subscription details
         
     Example:
-        PATCH /api/ms365/subscriptions/123e4567.../renew
+        PATCH /webhooks/ms365/subscriptions/123e4567.../renew
         {"expiration_hours": 72}
     """
     try:
@@ -332,7 +332,7 @@ async def delete_webhook_subscription(subscription_id: str):
         204 No Content on success
         
     Example:
-        DELETE /api/ms365/subscriptions/123e4567-e89b-12d3-a456-426614174000
+        DELETE /webhooks/ms365/subscriptions/123e4567-e89b-12d3-a456-426614174000
     """
     try:
         # Get subscription from database
@@ -412,10 +412,10 @@ async def receive_ms365_webhook(
         - Endpoint must be publicly accessible
     
     Example Validation Request:
-        POST /api/ms365/webhook?validationToken=abc123
+        POST /webhooks/ms365/webhook?validationToken=abc123
         
     Example Notification Request:
-        POST /api/ms365/webhook
+        POST /webhooks/ms365/webhook
         {
           "value": [
             {
