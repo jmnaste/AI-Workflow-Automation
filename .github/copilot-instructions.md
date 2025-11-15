@@ -69,14 +69,111 @@ n8n Workflows → API Service (AI primitives, webhook processing)
 
 **Critical**: Only `admin` role can access admin console (`/auth/admin/*`, `/bff/admin/*`). Super-user role has elevated business privileges but CANNOT access user management or admin endpoints.
 
-**API Service** handles:
-- **Webhook endpoints**: Receive MS365/Google notifications (`/api/ms365/webhook`, `/api/googlews/webhook`)
-- **Subscription tracking**: Metadata for active webhooks (`api.webhook_subscriptions`)
-- **Business process primitives**: Email parsing, document extraction, AI analysis
-- **LangGraph workflows**: AI-powered processing and reasoning
-- **n8n integration**: Exposes APIs for n8n workflow consumption
-- **Token requests**: Requests OAuth tokens from Auth Service per tenant
-- Business data (workflows, runs, agents)
+**API Service** uses **Process + Adapters architecture** (Hexagonal):
+
+**Process Layer** (`api/app/processes/`):
+- Business workflow orchestration (quote processing, email classification, workspace management)
+- Coordinates multiple adapters to achieve business goals
+- Provides high-level APIs for n8n consumption
+- Applies domain logic and business rules
+- **Platform-agnostic**: Same process works with MS365, Google, or future providers
+- **Pattern**: Uses Dependency Injection (DI) with duck typing
+
+**Adapters Layer** (`api/app/adapters/`):
+- **Organization**: `adapters/{provider}/{service}.py` (e.g., `ms365/mail.py`, `googlews/mail.py`)
+- **Providers**: ms365, googlews, database, storage
+- **Services per provider**: mail (email operations), drive (file operations), calendar (event operations)
+- **Primitives**: Atomic operations like `get_message()`, `create_folder()`, `send_message()`
+- **Key principle**: Same interface across providers (normalized output)
+- Abstracts external system integrations
+- Handles auth, retries, rate limiting, error normalization
+
+**Routes**:
+- `/api/processes/*`: Process-level endpoints for n8n (business workflows)
+- `/api/ms365/*`, `/api/googlews/*`: Adapter-level endpoints (webhooks, subscriptions)
+
+**Documentation**:
+- Full architecture: `docs/Architecture/architecture_decision.md`
+- Refactor plan: `docs/Implementation/refactor_plan.md` (5 phases, 13-18 hours)
+- Platform-agnostic patterns: `docs/Architecture/platform_agnostic_processes.md`
+- Quick reference: `docs/Architecture/README.md`
+
+### Architecture Deep Dive
+
+**Process + Adapters Philosophy**:
+- **Process Layer** = "What to do" (business intent in domain language)
+- **Adapters Layer** = "How to do it" (technical implementation details)
+
+**Example: Quote Request Workflow**
+```python
+# Process layer (processes/quote_processing.py)
+async def handle_quote_request(event_id: str, mail_adapter, drive_adapter, storage_adapter):
+    """Platform-agnostic: works with MS365 or Google"""
+    # 1. Fetch email
+    message = await mail_adapter.get_message(credential_id, message_id)
+    
+    # 2. Extract data (same format from any provider!)
+    subject = message["subject"]
+    from_email = message["from"]["address"]
+    attachments = message["attachments"]  # Normalized!
+    
+    # 3. Create workspace folder
+    folder_path = f"Quote_{from_email}_{date}"
+    await storage_adapter.create_folder(folder_path)
+    
+    # 4. Save files
+    await storage_adapter.write_json(f"{folder_path}/message.json", message)
+    for attachment in attachments:
+        await storage_adapter.save_file(f"{folder_path}/attachments/{attachment['name']}", attachment['content'])
+
+# Adapter layer (adapters/ms365/mail.py)
+async def get_message(credential_id: str, message_id: str) -> dict:
+    """MS365-specific implementation"""
+    graph_client = get_graph_client(credential_id)
+    msg = await graph_client.me.messages.by_message_id(message_id).get()
+    
+    # Normalize to standard format
+    return {
+        "id": msg.id,
+        "subject": msg.subject,
+        "from": {"address": msg.from_.email_address.address, "name": msg.from_.email_address.name},
+        "body": msg.body.content,
+        "attachments": [normalize_attachment(a) for a in msg.attachments]
+    }
+
+# Adapter layer (adapters/googlews/mail.py)
+async def get_message(credential_id: str, message_id: str) -> dict:
+    """Google-specific implementation - SAME interface!"""
+    gmail_service = get_gmail_client(credential_id)
+    msg = gmail_service.users().messages().get(userId='me', id=message_id).execute()
+    
+    # Normalize to SAME format as MS365!
+    return {
+        "id": msg["id"],
+        "subject": get_header(msg, "Subject"),
+        "from": {"address": extract_email(msg), "name": extract_name(msg)},
+        "body": extract_body(msg),
+        "attachments": [normalize_attachment(a) for a in extract_attachments(msg)]
+    }
+```
+
+**Key Benefits**:
+1. **Platform-agnostic**: Change `mail_adapter=ms365.mail` to `mail_adapter=googlews.mail` and process still works
+2. **Testable**: Mock adapters in unit tests, test process logic independently
+3. **Maintainable**: Business logic separate from API integration details
+4. **Extensible**: Add Salesforce adapter without touching process layer
+5. **n8n-friendly**: High-level `/api/processes/*` endpoints hide complexity
+
+**Python Pattern: Duck Typing + Dependency Injection**
+- No formal interfaces required (Pythonic!)
+- Process functions accept adapter parameters
+- Runtime provider selection based on credential
+- Optional `Protocol` type hints for IDE support
+
+**Additional Responsibilities**:
+- **Webhook receivers**: Store notifications in `api.webhook_events`
+- **Background worker**: Processes pending webhook events, normalizes data
+- **Token vending client**: Requests OAuth tokens from Auth Service
 - Startup gating: checks `auth.schema_registry.semver` against `API_MIN_AUTH_VERSION` env var
 
 **BFF responsibilities**:
@@ -252,6 +349,163 @@ SELECT * FROM auth.schema_registry_history ORDER BY id DESC LIMIT 5;
 \dt api.*
 ```
 
+## Implementation Patterns from Codebase
+
+**Current codebase patterns** (to be refactored into Process + Adapters):
+
+**Custom Token Credential for MS365** (`ms365_service.py`):
+```python
+class FlovifyTokenCredential(TokenCredential):
+    """
+    Bridges msgraph-sdk authentication with Auth service token vending.
+    Azure's TokenCredential requires sync get_token(), so uses httpx.Client.
+    """
+    def __init__(self, credential_id: str):
+        self.credential_id = credential_id
+    
+    def get_token(self, *scopes: str, **kwargs) -> AccessToken:
+        """Synchronous token fetch for msgraph-sdk compatibility"""
+        url = f"{AUTH_SERVICE_URL}/auth/oauth/internal/credential-token"
+        headers = {"X-Service-Token": SERVICE_SECRET}
+        data = {"credential_id": self.credential_id}
+        
+        with httpx.Client(timeout=10.0) as client:
+            response = client.post(url, headers=headers, json=data)
+            response.raise_for_status()
+            token_data = response.json()
+        
+        return AccessToken(
+            token=token_data["access_token"],
+            expires_on=token_data["expires_at"]
+        )
+```
+
+**Error handling pattern** (custom exceptions):
+```python
+class MS365ServiceError(Exception):
+    """Base exception for MS365 service errors"""
+    pass
+
+class AuthClientError(Exception):
+    """Base exception for auth client errors"""
+    pass
+
+# Usage in functions
+async def fetch_message(credential_id: str, message_id: str) -> dict:
+    try:
+        graph_client = get_graph_client(credential_id)
+        message = await graph_client.me.messages.by_message_id(message_id).get()
+        return normalize_message(message)
+    except Exception as e:
+        raise MS365ServiceError(f"Failed to fetch message: {e}")
+```
+
+**Webhook worker pattern** (background processing with retry):
+```python
+async def process_pending_events(batch_size: int = 10) -> Dict[str, int]:
+    """
+    Process webhook events with retry logic:
+    1. SELECT FOR UPDATE SKIP LOCKED (concurrent worker safety)
+    2. Mark as 'processing'
+    3. Fetch full resource data
+    4. Normalize payload
+    5. Update status to 'completed' or increment retry_count
+    """
+    stats = {"processed": 0, "failed": 0, "skipped": 0}
+    
+    # Fetch pending events
+    cur.execute("""
+        SELECT id, credential_id, provider, external_resource_id, retry_count
+        FROM api.webhook_events
+        WHERE status = 'pending' AND retry_count < %s
+        ORDER BY received_at ASC
+        LIMIT %s
+        FOR UPDATE SKIP LOCKED
+    """, (MAX_RETRY_ATTEMPTS, batch_size))
+    
+    for event in events:
+        try:
+            # Mark processing
+            cur.execute("UPDATE api.webhook_events SET status = 'processing' WHERE id = %s", (event_id,))
+            
+            # Fetch full data
+            normalized = await process_ms365_event(...)
+            
+            # Mark completed
+            cur.execute("""
+                UPDATE api.webhook_events 
+                SET status = 'completed', normalized_payload = %s 
+                WHERE id = %s
+            """, (json.dumps(normalized), event_id))
+            
+            stats["processed"] += 1
+        except Exception as e:
+            # Increment retry or mark failed
+            cur.execute("""
+                UPDATE api.webhook_events 
+                SET status = CASE WHEN retry_count + 1 >= %s THEN 'failed' ELSE 'pending' END,
+                    retry_count = retry_count + 1,
+                    error_message = %s
+                WHERE id = %s
+            """, (MAX_RETRY_ATTEMPTS, str(e), event_id))
+            stats["failed"] += 1
+    
+    return stats
+```
+
+**FastAPI Pydantic models** (request/response validation):
+```python
+class CreateSubscriptionRequest(BaseModel):
+    credential_id: str = Field(..., description="UUID of the credential")
+    resource: str = Field(..., examples=["me/mailFolders('inbox')/messages"])
+    change_types: List[str] = Field(..., examples=[["created"]])
+    notification_url: str = Field(..., examples=["https://webhooks.flovify.ca/..."])
+    expiration_hours: int = Field(default=72, ge=1, le=4230)
+
+class SubscriptionResponse(BaseModel):
+    id: str
+    credential_id: str
+    provider: str
+    status: str
+    expires_at: Optional[datetime]
+    created_at: datetime
+
+@router.post("/subscriptions", response_model=SubscriptionResponse, status_code=201)
+async def create_webhook_subscription(request: CreateSubscriptionRequest):
+    """Type-safe endpoint with validated request/response"""
+    pass
+```
+
+**Environment configuration pattern**:
+```python
+# Worker configuration
+WORKER_INTERVAL_SECONDS = int(os.getenv("WEBHOOK_WORKER_INTERVAL", "10"))
+WORKER_BATCH_SIZE = int(os.getenv("WEBHOOK_WORKER_BATCH_SIZE", "10"))
+MAX_RETRY_ATTEMPTS = int(os.getenv("WEBHOOK_MAX_RETRIES", "3"))
+
+# Service-to-service auth
+SERVICE_SECRET = os.getenv("SERVICE_SECRET")
+AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth:8000")
+```
+
+**Worker lifecycle pattern** (FastAPI lifespan):
+```python
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup/shutdown hooks"""
+    # Startup
+    worker_task = asyncio.create_task(run_worker())
+    yield
+    # Shutdown
+    worker_task.cancel()
+    try:
+        await worker_task
+    except asyncio.CancelledError:
+        pass
+
+app = FastAPI(title="API Service", version="0.1.1", lifespan=lifespan)
+```
+
 ## Common Patterns
 
 **FastAPI service structure**:
@@ -349,6 +603,42 @@ app.get('/bff/auth/me', verifyJwtMiddleware, async (req, res) => {
 - **CI/CD**: GitHub Actions → GHCR
 - **Reverse Proxy**: Traefik (Let's Encrypt TLS)
 - **Deployment**: Hostinger VPS (Docker Compose UI)
+
+## Layered Architecture: Process + Adapters
+
+API Service follows **Hexagonal Architecture** with clear separation between business and technical concerns:
+
+### **Process Layer** (`api/app/processes/`)
+- **Purpose**: Business workflow orchestration
+- **Responsibilities**: Quote processing, email classification, workspace management, document analysis
+- **Dependencies**: Uses adapters, no direct external library dependencies
+- **Naming**: `{capability}.py` → Functions: `handle_*()`, `process_*()`, `analyze_*()`
+- **Example**: `quote_processing.py` orchestrates email analysis, attachment extraction, workspace creation
+
+### **Adapters Layer** (`api/app/adapters/`)
+- **Purpose**: External system integrations
+- **Responsibilities**: Wrap MS365, Google, database, storage with clean interfaces
+- **Dependencies**: Can use external libraries (msgraph-sdk, google-api, psycopg)
+- **Naming**: `{system}_adapter.py` → Functions: `get_*()`, `fetch_*()`, `create_*()`, `download_*()`
+- **Example**: `ms365_adapter.py` wraps Microsoft Graph API, handles auth, retries, normalization
+
+### **When to Use Which Layer**
+
+**Modifying Process Layer** when:
+- Adding/changing business workflows (new email type, document processing)
+- Orchestrating multi-step operations
+- Applying business rules or logic
+- Creating n8n-consumable endpoints
+
+**Modifying Adapters Layer** when:
+- Integrating new external system (Salesforce, Slack)
+- Changing technical implementation (switch from local to S3 storage)
+- Handling authentication, rate limiting, retries for external APIs
+- Normalizing data formats from external systems
+
+**Key Principle**: Process layer says "what to do" (business), Adapters layer says "how to do it" (technical).
+
+See `docs/Architecture/layered_architecture.md` for detailed examples and patterns.
 
 ## When to Use Each Service
 
@@ -469,6 +759,42 @@ curl -X POST http://auth:8000/auth/admin/create-user \
 openssl rand -base64 32
 ```
 
+## Layered Architecture: Process + Adapters
+
+API Service follows **Hexagonal Architecture** with clear separation between business and technical concerns:
+
+### **Process Layer** (`api/app/processes/`)
+- **Purpose**: Business workflow orchestration
+- **Responsibilities**: Quote processing, email classification, workspace management, document analysis
+- **Dependencies**: Uses adapters, no direct external library dependencies
+- **Naming**: `{capability}.py` → Functions: `handle_*()`, `process_*()`, `analyze_*()`
+- **Example**: `quote_processing.py` orchestrates email analysis, attachment extraction, workspace creation
+
+### **Adapters Layer** (`api/app/adapters/`)
+- **Purpose**: External system integrations
+- **Responsibilities**: Wrap MS365, Google, database, storage with clean interfaces
+- **Dependencies**: Can use external libraries (msgraph-sdk, google-api, psycopg)
+- **Naming**: `{system}_adapter.py` → Functions: `get_*()`, `fetch_*()`, `create_*()`, `download_*()`
+- **Example**: `ms365_adapter.py` wraps Microsoft Graph API, handles auth, retries, normalization
+
+### **When to Use Which Layer**
+
+**Modifying Process Layer** when:
+- Adding/changing business workflows (new email type, document processing)
+- Orchestrating multi-step operations
+- Applying business rules or logic
+- Creating n8n-consumable endpoints
+
+**Modifying Adapters Layer** when:
+- Integrating new external system (Salesforce, Slack)
+- Changing technical implementation (switch from local to S3 storage)
+- Handling authentication, rate limiting, retries for external APIs
+- Normalizing data formats from external systems
+
+**Key Principle**: Process layer says "what to do" (business), Adapters layer says "how to do it" (technical).
+
+See `docs/Architecture/layered_architecture.md` for detailed examples and patterns.
+
 ## When Something Breaks
 
 1. **Check service health endpoints** (see Health & Diagnostics section)
@@ -489,6 +815,126 @@ openssl rand -base64 32
 - Architecture decisions go in `docs/Inception/` or service-specific `ARCHITECTURE.md`
 - Deployment steps in service `README.md` files
 - No "TODO" comments in production code — use `TODO.md` or GitHub Issues
+
+---
+
+## Quick Reference Cards
+
+### **Architecture Cheat Sheet**
+
+```
+Process Layer (Business)          Adapters Layer (Technical)
+─────────────────────────         ────────────────────────────
+processes/                        adapters/
+├── email_classification.py       ├── ms365/
+├── quote_processing.py           │   ├── mail.py
+├── workspace_management.py       │   ├── drive.py
+└── document_analysis.py          │   └── _auth.py
+                                  ├── googlews/
+"What to do"                      │   ├── mail.py
+Platform-agnostic                 │   └── drive.py
+Business language                 ├── database.py
+Uses adapters                     └── storage.py
+No external APIs
+                                  "How to do it"
+                                  Provider-specific
+                                  Technical details
+                                  Handles auth, retries
+```
+
+### **API Endpoints Cheat Sheet**
+
+```
+Process Endpoints (n8n)           Adapter Endpoints (Infrastructure)
+────────────────────────          ──────────────────────────────────
+POST /api/processes/email/analyze POST /api/ms365/subscriptions
+POST /api/processes/quote/handle  POST /api/ms365/webhook
+POST /api/processes/workspace/create GET  /api/ms365/subscriptions/{id}
+GET  /api/processes/events/pending PATCH /api/ms365/subscriptions/{id}/renew
+
+High-level business operations    Low-level webhook/subscription mgmt
+```
+
+### **Terminology Cheat Sheet**
+
+| Term | Definition | Example |
+|------|------------|---------|
+| **Adapter** | External system integration | `ms365`, `googlews`, `database` |
+| **Service** | Capability within adapter | `mail`, `drive`, `calendar` |
+| **Primitive** | Atomic operation | `get_message()`, `create_folder()` |
+| **Process** | Business workflow | `quote_processing`, `email_classification` |
+| **Provider** | Third-party platform | Microsoft 365, Google Workspace |
+| **Credential** | OAuth app configuration | Client ID, secret, scopes |
+| **Token** | OAuth access token | Encrypted, refreshable, stored in Auth |
+
+### **Testing Workflow Cheat Sheet**
+
+```bash
+# 1. Health checks
+curl http://auth:8000/auth/health
+curl http://api:8000/api/health
+
+# 2. Database check
+psql -h postgres -U app_root -d app_db -c "SELECT * FROM auth.schema_registry;"
+
+# 3. Test credential connection
+curl http://api:8000/api/test/auth-validate/CREDENTIAL_ID
+
+# 4. Test message fetching
+curl http://api:8000/api/test/ms365/messages/CREDENTIAL_ID?limit=3
+
+# 5. Worker logs
+docker logs api --tail 50 | grep -i "worker"
+
+# 6. Webhook events
+psql -h postgres -U app_root -d app_db -c "SELECT * FROM api.webhook_events ORDER BY received_at DESC LIMIT 5;"
+```
+
+### **Refactoring Roadmap**
+
+| Phase | Task | Duration | Status |
+|-------|------|----------|--------|
+| 0 | Test current code | 30-60 min | ⏳ In Progress |
+| 1 | Create adapter structure | 2-3 hours | 📝 Planned |
+| 2 | Create process layer | 3-4 hours | 📝 Planned |
+| 3 | Add process endpoints | 1-2 hours | 📝 Planned |
+| 4 | Add MS365 primitives | 2-3 hours | 📝 Planned |
+| 5 | Implement GoogleWS | 4-5 hours | 📝 Planned |
+
+**Total**: 13-18 hours  
+**Documentation**: `docs/Implementation/refactor_plan.md`
+
+### **Common Tasks Quick Commands**
+
+**Run migration**:
+```bash
+docker exec -it auth psql -h postgres -U app_root -d app_db -f /auth/migrations/0001_auth_bootstrap.sql
+```
+
+**Create admin user**:
+```bash
+curl -X POST http://auth:8000/auth/admin/create-user \
+  -H "X-Admin-Token: your_token" \
+  -d '{"email":"admin@example.com","role":"admin"}'
+```
+
+**Check logs**:
+```bash
+docker logs auth --tail 50 -f
+docker logs api --tail 50 -f
+```
+
+**Network debugging**:
+```bash
+docker exec -it netshell sh
+curl http://auth:8000/auth/health
+```
+
+**Generate secrets**:
+```bash
+openssl rand -base64 32  # JWT_SECRET
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"  # ENCRYPTION_KEY
+```
 
 ---
 
