@@ -8,6 +8,7 @@ except Exception:  # pragma: no cover
     psycopg = None  # Optional import; endpoint will report if missing
 
 from .services.migrations import run_migrations
+from .routes import ms365
 
 
 @asynccontextmanager
@@ -27,6 +28,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="AI Workflow API", version="0.1.0", lifespan=lifespan)
+
+# Register routers
+app.include_router(ms365.router)
 
 
 def _parse_semver(s: str) -> tuple[int, int, int]:
