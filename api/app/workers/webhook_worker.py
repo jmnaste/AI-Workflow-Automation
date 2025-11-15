@@ -12,7 +12,8 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 import traceback
 
-from ..services.ms365_service import fetch_message, MS365ServiceError
+from ..adapters.ms365 import mail as ms365_mail
+from ..adapters.ms365._auth import MS365AdapterError
 from ..services.database import get_db_connection
 
 
@@ -191,7 +192,7 @@ async def process_ms365_event(
     
     # Fetch full message data via Graph API
     try:
-        message_data = await fetch_message(credential_id, message_id)
+        message_data = await ms365_mail.get_message(credential_id, message_id)
         
         # Normalize to standard format
         normalized = {
@@ -215,7 +216,7 @@ async def process_ms365_event(
         
         return normalized
         
-    except MS365ServiceError as e:
+    except MS365AdapterError as e:
         raise Exception(f"Failed to fetch MS365 message {message_id}: {e}")
 
 

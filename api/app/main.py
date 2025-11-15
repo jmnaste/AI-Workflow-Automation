@@ -220,10 +220,11 @@ async def test_ms365_list_messages(credential_id: str, limit: int = 10):
     Validates that MS365 service can successfully call Graph API
     using tokens from Auth service.
     """
-    from .services.ms365_service import list_messages, MS365ServiceError
+    from .adapters.ms365 import mail as ms365_mail
+    from .adapters.ms365._auth import MS365AdapterError
     
     try:
-        messages = await list_messages(
+        messages = await ms365_mail.list_messages(
             credential_id=credential_id,
             folder="inbox",
             limit=limit
@@ -235,7 +236,7 @@ async def test_ms365_list_messages(credential_id: str, limit: int = 10):
             "message_count": len(messages),
             "messages": messages
         }
-    except MS365ServiceError as e:
+    except MS365AdapterError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
@@ -246,17 +247,18 @@ async def test_ms365_fetch_message(credential_id: str, message_id: str):
     """
     Test endpoint to fetch a single MS365 message.
     """
-    from .services.ms365_service import fetch_message, MS365ServiceError
+    from .adapters.ms365 import mail as ms365_mail
+    from .adapters.ms365._auth import MS365AdapterError
     
     try:
-        message = await fetch_message(credential_id, message_id)
+        message = await ms365_mail.get_message(credential_id, message_id)
         
         return {
             "status": "success",
             "credential_id": credential_id,
             "message": message
         }
-    except MS365ServiceError as e:
+    except MS365AdapterError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")

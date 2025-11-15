@@ -16,6 +16,23 @@ Entries are appended in reverse chronological order.
 
 ---
 
+## 2025-11-15 13:00 — Implement scalable /webhooks prefix architecture and complete Phase 0 testing
+- Prompts:
+```
+But wait, api_webhook_path_prefix now has a value specific to ms365 isn't that something that don't fit with the GoogleWS implementation to come?
+
+Prefer option B since webhooks aggregates public endpoints
+
+Traefik .yaml [shows certificatesresolvers.mytlschallenge]
+
+Still pending after few minutes (5)
+
+see the table's columns [webhook_events schema shows no updated_at column]
+```
+- Answer: User identified critical architecture flaw - API_WEBHOOK_PATH_PREFIX=/api/ms365/webhook was MS365-specific and wouldn't scale to Google Workspace. Implemented Option B: changed route prefix from /api/ms365 to /webhooks/ms365, updated API_WEBHOOK_PATH_PREFIX=/webhooks to cover all providers, systematically updated documentation across 9 files. Discovered Traefik cert resolver was named 'mytlschallenge' not 'letsencrypt' - updated all TRAEFIK_CERT_RESOLVER references. Fixed webhook worker bug - code referenced non-existent updated_at column, removed all references (only processed_at exists in schema). Deployed to VPS, successfully completed end-to-end webhook flow: subscription created, MS365 notification received, worker processed event, full message retrieved with subject/sender/body. Phase 0 testing complete.
+
+---
+
 ## 2025-01-13 21:30 — Add provider-specific OAuth callback routes to BFF
 - Prompts:
 ```

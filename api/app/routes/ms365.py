@@ -21,6 +21,9 @@ from ..services.ms365_service import (
 )
 from ..services.database import get_db_connection
 
+# Note: Mail operations now in adapters.ms365.mail
+# Subscription operations remain in services until Phase 2
+
 
 router = APIRouter(prefix="/webhooks/ms365", tags=["MS365 Webhooks"])
 
