@@ -1,7 +1,8 @@
 # API Service MS365 Implementation Plan
 
 **Date**: 2025-11-14  
-**Status**: 🟡 Ready to Start  
+**Status**: � Phase 5 Complete - In Progress  
+**Current Phase**: Phase 6 (Webhook Subscription Management)  
 **Goal**: Build API service to process MS365 webhooks and expose business primitives for n8n workflows
 
 ## Architecture Overview
@@ -23,30 +24,42 @@ MS365 Graph API → Webhook → API Service → Worker → Business Primitives �
 
 ---
 
-## Phase 1: Foundation (2-3 hours)
+## Phase 1: Documentation Cleanup ✅ COMPLETE
 
-### 1.1 Documentation Cleanup (30 min)
+**Status**: ✅ Completed 2025-11-14  
+**Time**: 30 minutes
 
 **Goal**: Remove obsolete tenant references from Implementation docs
 
-**Tasks**:
-- [ ] Review `docs/Implementation/ms365_credentials_implementation.md`
-  - Update status to reflect completed credentials system
-  - Mark as historical or archive
-- [ ] Review `docs/Implementation/ms365_credentials_model.md`
-  - Transition document, mark as historical
-- [ ] Create `docs/Implementation/archive/` folder
-- [ ] Move obsolete docs to archive with README
+**Completed Tasks**:
+- ✅ Reviewed `docs/Implementation/ms365_credentials_implementation.md`
+- ✅ Reviewed `docs/Implementation/ms365_credentials_model.md`
+- ✅ Created `docs/Implementation/archive/` folder with comprehensive README
+- ✅ Moved obsolete docs to archive (3 files)
 
-**Outcome**: Clean documentation, no confusion about tenant vs credentials
+**Outcome**: Clean documentation, archive explains tenant → credentials migration history
 
 ---
 
-### 1.2 Database Migrations (1 hour)
+## Phase 2: Database Migrations ✅ COMPLETE
+
+**Status**: ✅ Completed 2025-11-14  
+**Time**: 1 hour  
+**Schema Version**: API v0.1.1
 
 **Goal**: Create tables for webhook tracking
 
-**File 1**: `api/migrations/0001_webhook_subscriptions.sql`
+**Completed Migrations**:
+- ✅ `api/migrations/0002_webhook_subscriptions.sql` - Subscription tracking
+- ✅ `api/migrations/0003_webhook_events.sql` - Event processing with idempotency
+
+**Database Schema Created**:
+- `api.webhook_subscriptions` - Tracks active MS365/Google webhook subscriptions
+- `api.webhook_events` - Stores incoming notifications with idempotency (credential_id + subscriptionId + resourceId)
+
+**Verified on VPS**: Tables created, migrations applied successfully
+
+**Original Plan - File 1**: `api/migrations/0001_webhook_subscriptions.sql` (renamed to 0002)
 
 ```sql
 -- Migration: Webhook Subscriptions Tracking
@@ -210,15 +223,25 @@ docker exec -it api psql -h postgres -U app_root -d app_db -c "SELECT * FROM aut
 
 **Note**: Migrations are idempotent and safe to re-run. The migration runner (`api/app/services/migrations.py`) automatically executes all `.sql` files in order on container startup.
 
-**Outcome**: Database ready to track webhooks and events after next API container restart
+**Outcome**: Database ready to track webhooks and events
 
 ---
 
-### 1.3 Environment Setup (30 min)
+## Phase 3: Environment Setup ✅ COMPLETE
+
+**Status**: ✅ Completed 2025-11-14  
+**Time**: 30 minutes
 
 **Goal**: Install dependencies and configure environment
 
-**Update**: `api/requirements.txt`
+**Completed**:
+- ✅ Updated `api/requirements.txt` with msgraph-sdk, azure-identity, httpx, google libraries
+- ✅ Configured SERVICE_SECRET in auth/auth.compose.yml and api/api.compose.yml
+- ✅ Updated deploy/local/.env.local.template with new variables
+- ✅ Documented environment variables in api/README.md and auth/README.md
+- ✅ Created api/.env.example
+
+**Original Plan - Update**: `api/requirements.txt`
 ```txt
 # Existing dependencies
 fastapi==0.104.1
@@ -260,17 +283,28 @@ openssl rand -base64 32
 # Add to Auth and API env vars (must match!)
 ```
 
-**Outcome**: Dependencies installed, environment configured
+**Outcome**: Dependencies installed, environment configured for MS365 integration
 
 ---
 
-## Phase 2: Token Vending Integration (1 hour)
+## Phase 4: Auth Client for Token Vending ✅ COMPLETE
 
-### 2.1 Auth Client Service
+**Status**: ✅ Completed 2025-11-14 - Verified on VPS  
+**Time**: 1 hour
 
 **Goal**: Create reusable client for requesting tokens from Auth service
 
-**File**: `api/app/services/auth_client.py`
+**Completed**:
+- ✅ Created `api/app/services/auth_client.py` with token vending functions
+- ✅ Implemented in-memory token caching with 5-minute expiration buffer
+- ✅ Created `api/app/services/database.py` for database utilities
+- ✅ Added test endpoints to api/app/main.py
+- ✅ Fixed Auth service bug (psycopg Row access)
+- ✅ Tested successfully on VPS: `curl http://api:8000/api/test/auth-token/{credential_id}`
+
+**Test Results**: Token vending working - Auth service successfully dispenses OAuth tokens to API service
+
+**Original Plan - File**: `api/app/services/auth_client.py`
 
 ```python
 """
@@ -369,13 +403,32 @@ async def test_token_vending(credential_id: str):
 
 ---
 
-## Phase 3: MS365 Service Layer (2 hours)
+## Phase 5: MS365 Service Layer Foundation ✅ COMPLETE
 
-### 3.1 MS365 Service
+**Status**: ✅ Completed 2025-11-14 - Verified on VPS  
+**Time**: 2 hours (including debugging)
 
-**Goal**: Implement Graph API client using msgraph-sdk-python
+**Goal**: Implement Graph API client using msgraph-sdk-python with Auth service token vending
 
-**File**: `api/app/services/ms365_service.py`
+**Completed**:
+- ✅ Created `api/app/services/ms365_service.py` (370 lines)
+- ✅ Implemented **FlovifyTokenCredential** - Custom Azure TokenCredential using Auth service
+- ✅ Fixed async/sync mismatch (TokenCredential requires synchronous get_token())
+- ✅ Fixed msgraph-sdk request configuration classes  
+- ✅ Fixed Azure imports (AccessToken from azure.core.credentials)
+- ✅ Created functions: get_graph_client(), fetch_message(), list_messages(), create_subscription(), renew_subscription(), delete_subscription()
+- ✅ Added test endpoints: `/api/test/ms365/messages/{credential_id}`, `/api/test/ms365/message/{credential_id}/{message_id}`
+- ✅ Tested successfully on VPS: Retrieved 5 inbox messages with full metadata
+
+**Test Results**: 
+```bash
+curl http://api:8000/api/test/ms365/messages/37b08f02.../? limit=5
+# Returned 5 messages with id, subject, from, received_at, body_preview, has_attachments, is_read, importance
+```
+
+**Key Implementation Detail**: FlovifyTokenCredential uses synchronous `httpx.Client` (not async) because Azure's TokenCredential interface requires sync get_token() method
+
+**Original Plan - File**: `api/app/services/ms365_service.py`
 
 ```python
 """
