@@ -119,7 +119,10 @@ If you configured `DATABASE_URL`, you can also check DB connectivity:
 
 ### Optional
 
-- **`API_MIN_AUTH_VERSION`**: Minimum Auth schema version required (e.g., `0.2.0`). API will refuse to start until Auth has applied this version or higher.
+- **`API_MIN_AUTH_VERSION`**: Minimum Auth schema version required (e.g., `0.1.0`). API will refuse to start until Auth has applied this version or higher.
+- **`WEBHOOK_WORKER_INTERVAL`**: Poll interval for webhook worker in seconds (default: `10`)
+- **`WEBHOOK_WORKER_BATCH_SIZE`**: Max events processed per worker cycle (default: `10`)
+- **`WEBHOOK_MAX_RETRIES`**: Max retry attempts for failed events (default: `3`)
 - **`API_PUBLIC`**: Set to `true` to enable public webhook routes via Traefik
 - **`API_WEBHOOK_HOST`**: Public hostname for webhooks (e.g., `webhooks.flovify.ca`)
 - **`API_WEBHOOK_PATH_PREFIX`**: Path prefix for webhook routes (e.g., `/webhook`)

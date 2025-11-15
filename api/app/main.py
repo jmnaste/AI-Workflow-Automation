@@ -1,4 +1,5 @@
 import os
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 
@@ -9,11 +10,18 @@ except Exception:  # pragma: no cover
 
 from .services.migrations import run_migrations
 from .routes import ms365
+from .workers import webhook_worker
+
+
+# Global reference to worker task for lifecycle management
+worker_task = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Run database migrations and check auth version on startup."""
+    """Run database migrations, check auth version, and start background worker on startup."""
+    global worker_task
+    
     try:
         run_migrations()
         print("Database migrations completed successfully")
@@ -21,10 +29,24 @@ async def lifespan(app: FastAPI):
         # Check auth schema version if required
         check_auth_schema_version()
         
+        # Start webhook worker
+        worker_task = asyncio.create_task(webhook_worker.run_worker_loop())
+        print("Webhook worker started")
+        
     except Exception as e:
         print(f"Startup failed: {e}")
         raise
+    
     yield
+    
+    # Cleanup: cancel worker task on shutdown
+    if worker_task:
+        worker_task.cancel()
+        try:
+            await worker_task
+        except asyncio.CancelledError:
+            print("Webhook worker stopped")
+            pass
 
 
 app = FastAPI(title="AI Workflow API", version="0.1.0", lifespan=lifespan)
