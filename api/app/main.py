@@ -184,3 +184,53 @@ def test_auth_cache():
     from .services.auth_client import get_cache_stats
     
     return get_cache_stats()
+
+
+@app.get("/api/test/ms365/messages/{credential_id}")
+async def test_ms365_list_messages(credential_id: str, limit: int = 10):
+    """
+    Test endpoint to list MS365 inbox messages.
+    
+    Validates that MS365 service can successfully call Graph API
+    using tokens from Auth service.
+    """
+    from .services.ms365_service import list_messages, MS365ServiceError
+    
+    try:
+        messages = await list_messages(
+            credential_id=credential_id,
+            folder="inbox",
+            limit=limit
+        )
+        
+        return {
+            "status": "success",
+            "credential_id": credential_id,
+            "message_count": len(messages),
+            "messages": messages
+        }
+    except MS365ServiceError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+
+@app.get("/api/test/ms365/message/{credential_id}/{message_id}")
+async def test_ms365_fetch_message(credential_id: str, message_id: str):
+    """
+    Test endpoint to fetch a single MS365 message.
+    """
+    from .services.ms365_service import fetch_message, MS365ServiceError
+    
+    try:
+        message = await fetch_message(credential_id, message_id)
+        
+        return {
+            "status": "success",
+            "credential_id": credential_id,
+            "message": message
+        }
+    except MS365ServiceError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
