@@ -7,8 +7,7 @@ vended by the Auth service. Uses msgraph-sdk for Graph API calls.
 
 from typing import Optional, List, Dict, Any
 from msgraph import GraphServiceClient
-from azure.identity import AccessToken
-from azure.core.credentials import TokenCredential
+from azure.core.credentials import TokenCredential, AccessToken
 from datetime import datetime, timezone
 import httpx
 
