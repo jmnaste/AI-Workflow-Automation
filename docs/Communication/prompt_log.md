@@ -16,6 +16,29 @@ Entries are appended in reverse chronological order.
 
 ---
 
+## 2025-11-15 15:30 — Design Phase 2: Type-agnostic email processing task
+
+- Prompts:
+```
+We need to discuss phase 2 'nodes' to be implemented. Normally an endpoint is intended to act as a n8n augmented node (to avoid too complex n8n graphs) so the scope is an endpoint does a task in a workflow but it is not the workflow in scope. Is that clear?
+
+Actually n8n AI nodes are pretty good at document interpretation, the complexity is with dataflow that becomes messy. For now I suggest that for the API we stick to primitives related to MS365 and GoogleWS operations. One such task is process incoming request for quote email given the email id, email intention/sentiment, customer info like id, name, contact name. That task retrieves the email, creates a folder into client's folder at quote folder location, creates documents related to email, and saves attachments. Then the email is moved from inbox to another qualified mailbox.
+
+I would rather have the task 'type agnostic' and rather carry metadata as json saved within the email json definition. Please don't show code as soon as now, we first must align with design.
+
+- all param required except maybe move-to-folder
+- folder option A
+- create folder if not existing
+- any failure should be highly visible on flovify dashboard (fail entire task)
+- return both paths
+
+have you adjust related documents? Do this, we commit and then we start the job.
+```
+
+- Answer: Designed type-agnostic email processing task after clarifying endpoint scope (task = single n8n node, not full workflow). Task is platform-agnostic executor: fetch email → create folder → save email.json with metadata passthrough → download/save attachments → move email. n8n owns all intelligence (classification, extraction, routing). Folder structure: `Clients/{customer_id}-{name}/{category}/{ref-subject}/`. All parameters required except move_to_folder. Any failure = fail entire task with full error context for dashboard visibility. Returns both relative path and absolute OneDrive/Google Drive URL. Updated refactor_plan.md with Phase 2 steps and created comprehensive design document phase2_email_processing_design.md covering endpoint spec, folder structure, email.json format, adapter primitives needed, n8n integration pattern, and testing strategy.
+
+---
+
 ## 2025-11-15 14:30 — Complete Phase 1: Create adapter structure with MS365 mail operations
 - Prompts:
 ```

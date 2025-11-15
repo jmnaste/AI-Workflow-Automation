@@ -403,65 +403,85 @@ curl http://api:8000/api/test/ms365/messages/{CREDENTIAL_ID}?limit=3
 
 ## Phase 2: Create Process Layer
 
-**Duration**: 3-4 hours  
-**Status**: Not Started
+**Duration**: 5-6 hours  
+**Status**: Ready to Start
 
 ### **Goal**
-Implement business workflows that use adapters
+Implement type-agnostic email processing task that uses MS365/GoogleWS adapters
 
-### **Step 2.1: Create Process Directory**
+### **Design Decision**
+After discussion on 2025-11-15, decided on **type-agnostic design**:
+- Task doesn't know about "quote" vs "support ticket"
+- n8n provides all intelligence and business rules
+- API task is pure executor: fetch → folder → save → move
+- Metadata passed through untouched from n8n
+- Any failure = fail entire task (highly visible on dashboard)
 
-```bash
-mkdir -p api/app/processes
-touch api/app/processes/__init__.py
-```
+### **Step 2.1: Expand MS365 Mail Adapter** (1 hour)
 
-### **Step 2.2: Implement Email Classification Process**
+**File**: `api/app/adapters/ms365/mail.py`
 
-**File**: `api/app/processes/email_classification.py`
+Add primitives:
+- `download_attachment(credential_id, message_id, attachment_id) -> bytes`
+- `move_message(credential_id, message_id, target_folder: str) -> dict`
 
-See full implementation in `platform_agnostic_processes.md` document.
+### **Step 2.2: Create MS365 Drive Adapter** (2 hours)
 
-Key functions:
-- `async def analyze_email(event_id: str) -> dict`
-- `def extract_quote_entities(message: dict) -> list`
-- `def extract_invoice_entities(message: dict) -> list`
+**File**: `api/app/adapters/ms365/drive.py`
 
-### **Step 2.3: Implement Quote Processing Workflow**
+Implement:
+- `ensure_folder_path(credential_id, path: str) -> str` (returns absolute URL)
+- `upload_file(credential_id, path: str, content: bytes) -> None`
+- `upload_json(credential_id, path: str, data: dict) -> None`
+- `get_folder_url(credential_id, path: str) -> str`
 
-**File**: `api/app/processes/quote_processing.py`
+### **Step 2.3: Create Process Layer** (1-2 hours)
 
-Key functions:
-- `async def handle_quote_request(event_id, folder_name, extract_attachments) -> dict`
+**File**: `api/app/processes/email_processing.py`
 
-### **Step 2.4: Implement Workspace Management**
+Implement:
+- `process_and_archive_email()` - Type-agnostic email processor
+  - Fetches email via mail adapter
+  - Creates folder structure: `Clients/{customer_id}-{name}/{category}/{ref-subject}/`
+  - Saves email.json with metadata passthrough
+  - Downloads and saves attachments
+  - Moves email to target folder (optional)
+  - Returns workspace path (relative + absolute URL)
 
-**File**: `api/app/processes/workspace_management.py`
+### **Step 2.4: Create Process Endpoint** (30 min)
 
-Key functions:
-- `async def create_workspace(event_id, folder_name, options) -> dict`
+**File**: `api/app/routes/processes.py`
 
-### **Step 2.5: Update Processes Package Exports**
+Implement:
+- `POST /api/processes/email/process-and-archive`
+- Pydantic models for request/response validation
+- Error handling with full context for dashboard visibility
 
-**File**: `api/app/processes/__init__.py`
-```python
-"""Processes Layer: Business workflows"""
+**Request Parameters** (all required except move_to_folder):
+- credential_id, message_id
+- customer_id, customer_name
+- category, ref_number, subject_synthetic
+- move_to_folder (optional)
+- metadata (object - untouched passthrough)
 
-from . import email_classification
-from . import quote_processing
-from . import workspace_management
+### **Step 2.5: Test End-to-End** (1 hour)
 
-__all__ = [
-    "email_classification",
-    "quote_processing",
-    "workspace_management"
-]
-```
+Test scenarios:
+- Process quote email with attachments
+- Verify folder structure created on OneDrive
+- Verify email.json saved with metadata passthrough
+- Verify attachments downloaded correctly
+- Verify email moved to target folder
+- Test error handling (attachment download failure, folder creation failure)
 
 ### **Success Criteria**
-- ✅ Process functions implement business logic
-- ✅ Processes use adapters (no direct external dependencies)
-- ✅ Unit tests pass with mocked adapters
+- ✅ MS365 mail adapter expanded with download/move primitives
+- ✅ MS365 drive adapter created with folder/upload operations
+- ✅ Type-agnostic email processing function works
+- ✅ Process endpoint validates requests and handles errors
+- ✅ End-to-end test: email → OneDrive folder → email moved
+- ✅ Metadata passthrough works (n8n data preserved in email.json)
+- ✅ Error responses include full context for dashboard visibility
 
 ---
 
