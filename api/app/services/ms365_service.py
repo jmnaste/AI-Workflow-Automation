@@ -170,15 +170,21 @@ async def list_messages(
     try:
         client = get_graph_client(credential_id)
         
-        # Build request
-        request_config = {
-            "top": min(limit, 100),  # Cap at 100
-            "select": ["id", "subject", "from", "receivedDateTime", "bodyPreview", 
-                      "hasAttachments", "isRead", "importance"]
-        }
+        # Build query parameters using msgraph SDK's query parameters class
+        from msgraph.generated.users.item.messages.messages_request_builder import MessagesRequestBuilder
+        
+        query_params = MessagesRequestBuilder.MessagesRequestBuilderGetQueryParameters(
+            top=min(limit, 100),
+            select=["id", "subject", "from", "receivedDateTime", "bodyPreview", 
+                   "hasAttachments", "isRead", "importance"]
+        )
         
         if filter_query:
-            request_config["filter"] = filter_query
+            query_params.filter = filter_query
+        
+        request_config = MessagesRequestBuilder.MessagesRequestBuilderGetRequestConfiguration(
+            query_parameters=query_params
+        )
         
         # Get messages from folder
         if folder.lower() == "inbox":
