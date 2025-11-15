@@ -25,6 +25,9 @@ class FlovifyTokenCredential(TokenCredential):
     
     This bridges msgraph-sdk's authentication system with our centralized
     OAuth credential management in the Auth service.
+    
+    Note: Azure's TokenCredential requires synchronous get_token(), but our
+    auth_client uses async httpx. We use httpx's sync Client here.
     """
     
     def __init__(self, credential_id: str):
@@ -38,7 +41,7 @@ class FlovifyTokenCredential(TokenCredential):
     
     def get_token(self, *scopes: str, **kwargs) -> AccessToken:
         """
-        Get access token from Auth service.
+        Get access token from Auth service (synchronous).
         
         Args:
             scopes: OAuth scopes (ignored - uses credential's configured scopes)
@@ -50,18 +53,46 @@ class FlovifyTokenCredential(TokenCredential):
         Raises:
             MS365ServiceError: If token vending fails
         """
+        import os
+        
+        SERVICE_SECRET = os.getenv("SERVICE_SECRET")
+        AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth:8000")
+        
+        if not SERVICE_SECRET:
+            raise MS365ServiceError("SERVICE_SECRET not configured")
+        
         try:
-            token_data = get_credential_token(self.credential_id)
+            # Use synchronous httpx client (required by TokenCredential interface)
+            url = f"{AUTH_SERVICE_URL}/auth/oauth/internal/credential-token"
+            headers = {
+                "X-Service-Token": SERVICE_SECRET,
+                "Content-Type": "application/json"
+            }
+            data = {"credential_id": self.credential_id}
             
-            # Convert Unix timestamp to datetime for AccessToken
+            with httpx.Client(timeout=10.0) as client:
+                response = client.post(url, headers=headers, json=data)
+                response.raise_for_status()
+                token_data = response.json()
+            
+            # Convert Unix timestamp for AccessToken
             expires_on = token_data["expires_at"]
             
             return AccessToken(
                 token=token_data["access_token"],
                 expires_on=expires_on
             )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise MS365ServiceError(f"Credential {self.credential_id} not found or not connected")
+            elif e.response.status_code == 401:
+                raise MS365ServiceError("Invalid SERVICE_SECRET")
+            else:
+                raise MS365ServiceError(f"Auth service error: {e.response.status_code}")
         except AuthClientError as e:
             raise MS365ServiceError(f"Failed to get token for credential {self.credential_id}: {e}")
+        except Exception as e:
+            raise MS365ServiceError(f"Unexpected error getting token: {e}")
 
 
 def get_graph_client(credential_id: str) -> GraphServiceClient:
