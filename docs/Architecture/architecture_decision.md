@@ -489,14 +489,15 @@ api/app/
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Process Layer | ⏳ Planned | To be implemented |
-| Adapters: MS365 Mail | ✅ Partial | Exists as `services/ms365_service.py`, needs refactor |
-| Adapters: MS365 Drive | ⏳ Planned | To be implemented |
-| Adapters: GoogleWS | ⏳ Planned | Auth exists, services needed |
-| Adapters: Database | ⏳ Planned | Basic utilities exist |
-| Adapters: Storage | ⏳ Planned | To be implemented |
-| Process Endpoints | ⏳ Planned | To be implemented |
-| Webhook System | ✅ Complete | Working (receiver + worker) |
+| Process Layer | ⏳ Planned | To be implemented (Phase 2) |
+| Adapters: MS365 Auth | ✅ Complete | `adapters/ms365/_auth.py` (FlovifyTokenCredential, get_graph_client) |
+| Adapters: MS365 Mail | ✅ Complete | `adapters/ms365/mail.py` (get_message, list_messages) |
+| Adapters: MS365 Drive | ⏳ Planned | To be implemented (Phase 4) |
+| Adapters: GoogleWS | ⏳ Planned | Placeholder created, auth/services needed (Phase 5) |
+| Adapters: Database | ⏳ Planned | Basic utilities exist, needs adapter wrapper |
+| Adapters: Storage | ⏳ Planned | To be implemented (Phase 2) |
+| Process Endpoints | ⏳ Planned | To be implemented (Phase 3) |
+| Webhook System | ✅ Complete | Working (receiver + worker, uses MS365 mail adapter) |
 
 ---
 
